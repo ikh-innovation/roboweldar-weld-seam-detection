@@ -1,9 +1,6 @@
 import open3d as o3d
-import matplotlib.pyplot as plt
 import numpy as np
-import copy
 import argparse
-import pymesh
 
 
 def mesh2pointcloud(mesh_path: str, point_num: int) -> o3d.geometry.PointCloud:
@@ -32,18 +29,24 @@ def main(config: Config):
 
     pcds = []
 
-    pointcloud = o3d.io.read_point_cloud(config.pc_path)
-    pcds.append(pointcloud)
+    pcd = o3d.io.read_point_cloud(config.pc_path)
+    if len(pcd.points) == 0:
+        pcd = o3d.io.read_triangle_mesh(config.pc_path)
+        pcd.paint_uniform_color([0.5, 0.5, 0.5])
+        pcd.compute_vertex_normals()
 
-    #recolor if pc is white
-    colors = np.asarray(pointcloud.colors)
-    white_idx =np.where((colors[:, 0] == 1) & (colors[:, 1] == 1) & (colors[:, 2] == 1))[0]
-    colors[white_idx, :] = [0, 0, 0]
-    pointcloud.colors = o3d.utility.Vector3dVector(colors)
+    pcds.append(pcd)
+
+    #recolor white voxels if it is a pointcloud
+    if hasattr(pcd, 'points'):
+        colors = np.asarray(pcd.colors)
+        white_idx =np.where((colors[:, 0] == 1) & (colors[:, 1] == 1) & (colors[:, 2] == 1))[0]
+        colors[white_idx, :] = [0, 0, 0]
+        pcd.colors = o3d.utility.Vector3dVector(colors)
 
     if config.gt_path is not None:
         ground_truth = o3d.io.read_point_cloud(config.gt_path)
-        ground_truth.paint_uniform_color([0, 1, 0])
+        ground_truth.paint_uniform_color([1, 0, 0])
         pcds.append(ground_truth)
 
     o3d.visualization.draw_geometries(pcds)
@@ -69,7 +72,7 @@ def parse_args(default_config: dict) -> Config:
 
 # ************************************************************************
 default_config = {
-    'pc_path': "ArtificialPointClouds/TetrahedronMultiple.pcd",
+    'pc_path': "pointclouds/ArtificialPointClouds/TetrahedronMultiple.pcd",
 }
 
 if __name__ == '__main__':

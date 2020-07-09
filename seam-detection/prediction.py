@@ -1,10 +1,7 @@
 import open3d as o3d
-import matplotlib.pyplot as plt
 import numpy as np
-import copy
 import argparse
 from pyntcloud import PyntCloud
-import pymesh
 import os
 
 
@@ -13,6 +10,7 @@ def mesh2pointcloud(mesh_path: str, point_num: int) -> o3d.geometry.PointCloud:
     # mesh.scale(0.01, center=(0, 0, 0))
     # pointcloud = mesh.sample_points_poisson_disk(point_num)
     pointcloud = mesh.sample_points_uniformly(point_num)
+    pointcloud.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.01, max_nn=30))
 
     return pointcloud
 
@@ -27,7 +25,7 @@ def edge_detection(pcd: o3d.geometry.PointCloud, k_n=50, thresh=0.03) -> (o3d.ge
     kdtree_id = pcd.add_structure("kdtree")
     k_neighbors = pcd.get_neighbors(k=k_n, kdtree=kdtree_id)
 
-    # calculate eigenvalues
+    # calculate eigenvalues #TODO: docstring
     ev = pcd.add_scalar_field("eigen_values", k_neighbors=k_neighbors)
 
     x = pcd.points['x'].values
@@ -75,7 +73,7 @@ def main(config: Config):
     pcd = o3d.io.read_point_cloud(pcd_path)
     #if a pointcloud cannot be read try to read a mesh
     if len(pcd.points) == 0:
-        pcd = mesh2pointcloud(pcd_path, 1000000)
+        pcd = mesh2pointcloud(pcd_path, 500000)
 
     print(pcd)
     # mesh = o3d.io.read_triangle_mesh("ArtificialPointClouds/welding_area.obj")
@@ -111,7 +109,7 @@ def parse_args(default_config: dict) -> Config:
 
 # ************************************************************************
 default_config = {
-    'pc_path': "ArtificialPointClouds/TetrahedronMultiple.pcd",
+    'pc_path': "pointclouds/ArtificialPointClouds/TetrahedronMultiple.pcd",
 }
 
 if __name__ == '__main__':
