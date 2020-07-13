@@ -153,4 +153,5 @@ fabric.properties
 #custom folders
 pointclouds/
 detected_edges/
+mount/
 dataset_construction/welding_area.*
