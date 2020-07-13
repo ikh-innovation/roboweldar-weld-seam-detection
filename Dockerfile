@@ -8,4 +8,4 @@ WORKDIR /app
 COPY seam-detection/prediction.py .
 COPY flask-server.py .
 ENTRYPOINT ["python"]
-CMD ["./app.py"]
+CMD ["./flask-server.py"]
