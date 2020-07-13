@@ -1,1 +1,1 @@
-# roboweldar-3d-reconstruction
+# roboweldar-weld-seam-detection
