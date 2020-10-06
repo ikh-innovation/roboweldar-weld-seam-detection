@@ -1,6 +1,7 @@
 import open3d as o3d
 import numpy as np
 import argparse
+import os
 
 
 def mesh2pointcloud(mesh_path: str, point_num: int) -> o3d.geometry.PointCloud:
@@ -29,11 +30,32 @@ def main(config: Config):
 
     pcds = []
 
-    pcd = o3d.io.read_point_cloud(config.pc_path)
-    if len(pcd.points) == 0:
-        pcd = o3d.io.read_triangle_mesh(config.pc_path)
-        pcd.paint_uniform_color([0.5, 0.5, 0.5])
-        pcd.compute_vertex_normals()
+    # filename, file_extension = os.path.splitext(config.pc_path)
+    # if file_extension == '.npy':
+    #     pt = np.load(config.pc_path) # K,8
+    #     print(pt,config.pc_path)
+    #     pcd = o3d.geometry.PointCloud()
+    #     pcd.points = o3d.utility.Vector3dVector(pt)
+    # elif file_extension == '.npz':
+    #
+    #     pt = np.load(config.pc_path)['point_votes']  # K,8
+    #
+    #     pcd1 = o3d.geometry.PointCloud()
+    #     pcd1.points = o3d.utility.Vector3dVector(pt[0:3])
+    #     pcds.append(pcd1)
+    #
+    #     pcd2 = o3d.geometry.PointCloud()
+    #     pcd2.points = o3d.utility.Vector3dVector(pt[3:6])
+    #     pcds.append(pcd2)
+    #
+    #     pcd = o3d.geometry.PointCloud()
+    #     pcd.points = o3d.utility.Vector3dVector(pt[6:9])
+    #
+    # else:
+    pcd = o3d.io.read_triangle_mesh(config.pc_path)
+    # pcd.paint_uniform_color([0.5, 0.5, 0.5])
+    pcd.compute_vertex_normals()
+    print(np.asarray(pcd.triangles))
 
     pcds.append(pcd)
 

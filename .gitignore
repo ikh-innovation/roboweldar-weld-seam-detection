@@ -155,3 +155,5 @@ pointclouds/
 detected_edges/
 mount/
 dataset_construction/welding_area.*
+reconstructed_mesh/
+welding_paths_output/
