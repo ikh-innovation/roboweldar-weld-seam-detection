@@ -109,9 +109,9 @@ def main(host, endpoint):
     # clean up directory
     clean_up_folder(MESH_DIR)
     clean_up_folder(OUTPUT_DIR)
-    #TODO
-    get_mesh_files(host=host, httpPort=3000, path_to_dir=MESH_DIR)
-    start()
+
+    # get_mesh_files(host=host, httpPort=3000, path_to_dir=MESH_DIR)
+    # start()
 
     # init client
     wsClient = ws_client.getClient("ws://" + host + ":3001/" + endpoint)
@@ -120,12 +120,14 @@ def main(host, endpoint):
     wst.daemon = True
     wst.start()
 
-    # while(not is_done): time.sleep(1)
-
-    url = "http://" + str(host) + ":3000/cache_welding_trajectory"
-    print("Uploading welding paths numpy array to {}...".format(url))
-    is_sent_mesh = send_files(url, [OUTPUT_FILE])
-    print("Uploaded welding paths numpy array to {}...".format(url))
+    while(True):
+        print(is_done)
+        time.sleep(1)
+        if not is_done: continue
+        url = "http://" + str(host) + ":3000/cache_welding_trajectory"
+        print("Uploading welding paths numpy array to {}...".format(url))
+        is_sent_mesh = send_files(url, [OUTPUT_FILE])
+        print("Uploaded welding paths numpy array to {}...".format(url))
 
 if __name__ == '__main__':
     import argparse
@@ -135,4 +137,4 @@ if __name__ == '__main__':
                         help="Host on which the server is running")
 
     args = parser.parse_args()
-    main(host=args.host, endpoint="sfm")
+    main(host=args.host, endpoint="weld_seam_detection")
