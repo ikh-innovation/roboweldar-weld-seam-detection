@@ -87,26 +87,27 @@ def execute_global_registration(source_down, target_down, source_fpfh, target_fp
     return result
 
 
-def edge_detection(pcd: o3d.geometry.PointCloud, k_n=50, thresh=0.03) -> (o3d.geometry.PointCloud, o3d.geometry.PointCloud):
+def edge_detection(pcd: o3d.geometry.PointCloud, k_n=50, thresh=0.03) -> o3d.geometry.PointCloud:
+    """detects edges of a pointcloud and colors the respective points. It returns another pointcloud including only the edges"""
 
-    pcd = PyntCloud.from_instance("open3d", pcd)
+    pcd_pynt = PyntCloud.from_instance("open3d", pcd)
 
-    pcd_np = np.zeros((len(pcd.points), 6))
+    pcd_np = np.zeros((len(pcd_pynt.points), 6))
 
     # find neighbors
-    kdtree_id = pcd.add_structure("kdtree")
-    k_neighbors = pcd.get_neighbors(k=k_n, kdtree=kdtree_id)
+    kdtree_id = pcd_pynt.add_structure("kdtree")
+    k_neighbors = pcd_pynt.get_neighbors(k=k_n, kdtree=kdtree_id)
 
     # calculate eigenvalues #TODO: docstring
-    ev = pcd.add_scalar_field("eigen_values", k_neighbors=k_neighbors)
+    ev = pcd_pynt.add_scalar_field("eigen_values", k_neighbors=k_neighbors)
 
-    x = pcd.points['x'].values
-    y = pcd.points['y'].values
-    z = pcd.points['z'].values
+    x = pcd_pynt.points['x'].values
+    y = pcd_pynt.points['y'].values
+    z = pcd_pynt.points['z'].values
 
-    e1 = pcd.points['e3(' + str(k_n + 1) + ')'].values
-    e2 = pcd.points['e2(' + str(k_n + 1) + ')'].values
-    e3 = pcd.points['e1(' + str(k_n + 1) + ')'].values
+    e1 = pcd_pynt.points['e3(' + str(k_n + 1) + ')'].values
+    e2 = pcd_pynt.points['e2(' + str(k_n + 1) + ')'].values
+    e3 = pcd_pynt.points['e1(' + str(k_n + 1) + ')'].values
 
     sum_eg = np.add(np.add(e1, e2), e3)
     sigma = np.divide(e1, sum_eg)
@@ -115,20 +116,20 @@ def edge_detection(pcd: o3d.geometry.PointCloud, k_n=50, thresh=0.03) -> (o3d.ge
 
     points = np.transpose([x, y, z])
 
-    pointcloud = o3d.geometry.PointCloud()
-    pointcloud.points = o3d.utility.Vector3dVector(points)
+    pcd.points = o3d.utility.Vector3dVector(points)
 
     base_color = [[0.1, 0.1, 0.1]]
-    red = [1, 0, 0]
+    red = [1, 1, 1]
     colors = np.repeat(base_color, len(edges), axis=0)
     colors[edges == True] = red
-    pointcloud.colors = o3d.utility.Vector3dVector(colors)
+    pcd.colors = o3d.utility.Vector3dVector(colors)
 
     edges_pointcloud = o3d.geometry.PointCloud()
     edges_pointcloud.points = o3d.utility.Vector3dVector(points[sigma > thresh])
+    edges_pointcloud.normals = o3d.utility.Vector3dVector(np.asarray(pcd.normals)[sigma > thresh])
     edges_pointcloud.paint_uniform_color(red)
 
-    return pointcloud, edges_pointcloud
+    return edges_pointcloud
 
 class Config:
     def __init__(self,
