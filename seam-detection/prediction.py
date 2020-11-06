@@ -5,7 +5,7 @@ from pyntcloud import PyntCloud
 import os
 import copy
 
-o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Debug)
+# o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Debug)
 
 
 def mesh2pointcloud(mesh_path: str, point_num: int) -> o3d.geometry.PointCloud:

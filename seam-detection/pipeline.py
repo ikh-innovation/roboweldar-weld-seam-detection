@@ -108,7 +108,7 @@ def edge_intersection(edges: o3d.geometry.PointCloud, box_edge_indices: [[int]])
 
 
 def edges_within_bboxes(bboxes:[o3d.geometry.OrientedBoundingBox], edges_pt: o3d.geometry.PointCloud) -> ([o3d.geometry.OrientedBoundingBox], [o3d.geometry.PointCloud], [[int]]):
-    """returns non-empty bounding boxes and indeces of edges"""
+    """returns non-empty bounding boxes and indices of edges within"""
 
     filtered_bboxes = []
     filtered_bboxes_edges = []
@@ -155,36 +155,29 @@ def BFS_SP(graph, start, goal):
     # Python implementation to find the shortest path in the graph using dictionaries
     # Function to find the shortest path between two nodes of a graph
     explored = []
-
     # Queue for traversing the graph in the BFS
     queue = [[start]]
-
     # If the desired node is reached
     if start == goal:
         print("Same Node")
         return
-
     # Loop to traverse the graph with the help of the queue
     while queue:
         path = queue.pop(0)
         node = path[-1]
-
         # Codition to check if the current node is not visited
         if node not in explored:
             neighbours = graph.edges[node]
-
             # Loop to iterate over the neighbours of the node
             for neighbour in neighbours:
                 new_path = list(path)
                 new_path.append(neighbour)
                 queue.append(new_path)
-
                 # Condition to check if the neighbour node is the goal
                 if neighbour == goal:
                     print("Shortest path = ", *new_path)
                     return new_path
             explored.append(node)
-
         # Condition when the nodes are not connected
     print("So sorry, but a connecting path doesn't exist :(")
     return
@@ -206,22 +199,27 @@ def make_3d_path(points, path):
     return line
 
 
-def detect_trajectories(pointcloud: o3d.geometry.PointCloud, indices:[int], colorize=True, clusters_num=2, ransac_threshold = 0.002) -> []:
+def detect_trajectories(pointcloud: o3d.geometry.PointCloud, indices:[int], colorize=True, clusters_num=2, ransac_threshold = 0.002) -> ([o3d.geometry.Geometry3D], np.ndarray(shape=(4,4,2))):
     import itertools
-    from sklearn import mixture, linear_model, datasets
+    from sklearn import mixture, cluster
     from skimage.measure import LineModelND, ransac
     from matplotlib import pyplot as plt
 
     assert pointcloud.has_normals(), "pointcloud is missing normals"
     #CLUSTERING
     dataset = np.asarray(pointcloud.points)[indices]
-    dpgmm = mixture.GaussianMixture(n_components=clusters_num, covariance_type='full').fit(dataset)
-    # dpgmm = mixture.BayesianGaussianMixture(n_components=clusters_num, covariance_type='full').fit(dataset)
-    predictions = dpgmm.predict(dataset)
+    # cluster_algorithm = mixture.GaussianMixture(n_components=clusters_num, covariance_type='full', init_params='random', n_init=10, verbose=True).fit(dataset)
+    # cluster_algorithm = mixture.BayesianGaussianMixture(n_components=clusters_num, covariance_type='full').fit(dataset)
+    cluster_algorithm = cluster.OPTICS(min_cluster_size=100).fit(dataset)
+
+    if hasattr(cluster_algorithm, 'labels_'):
+        predictions = cluster_algorithm.labels_.astype(np.int)
+    else:
+        predictions = cluster_algorithm.predict(dataset)
 
     if colorize:
         cluster_colors = []
-        colors_per_cluster = [np.random.choice(range(10), size=3)*0.1 for _ in range(0, clusters_num)]
+        colors_per_cluster = [np.random.choice(range(10), size=3)*0.1 for _ in range(-5, 50)]
         for cl in predictions:
             cluster_colors.append(colors_per_cluster[cl])
 
@@ -267,12 +265,14 @@ def detect_trajectories(pointcloud: o3d.geometry.PointCloud, indices:[int], colo
 
         # calculate the transformation matrix: translation + rotation
         trans_matrix = np.append(rot_matrix, np.array([[0,0,0]]), axis=0)
-        line_center = np.append(np.array((line_ransac[0] + line_ransac[1])/2).T, 1).reshape((4,1))
-        trans_matrix = np.append(trans_matrix, line_center, axis=1)
+        line_begin = np.append(line_ransac[0].T, 1).reshape((4,1))
+        line_end = np.append(line_ransac[1].T, 1).reshape((4,1))
+        trans_matrix_begin = np.append(trans_matrix, line_begin, axis=1)
+        trans_matrix_end = np.append(trans_matrix, line_end, axis=1)
 
         lines_points.append(line_ransac)
         correspondences.append([cl * 2, cl * 2 + 1])
-        transformation_matrices.append(trans_matrix)
+        transformation_matrices.append(np.array([trans_matrix_begin, trans_matrix_end]))
 
     #VISUALIZATION
     # create a line mesh for each one
@@ -283,19 +283,20 @@ def detect_trajectories(pointcloud: o3d.geometry.PointCloud, indices:[int], colo
     trajectories_segments = trajectories.cylinder_segments
 
     # for every line, create and display the normal of it
-    for i, mtx in enumerate(transformation_matrices):
+    flat_trans_matrices = [item for sublist in transformation_matrices for item in sublist]
+    for i, mtx in enumerate(flat_trans_matrices):
         # axis = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
         arrow = o3d.geometry.TriangleMesh.create_arrow(cylinder_radius=ransac_threshold,cone_radius=ransac_threshold*1.3, cylinder_height=ransac_threshold*20, cone_height=ransac_threshold*3)
         arrow.paint_uniform_color(yellow)
         arrow.transform(mtx)
         trajectories_segments.append(arrow)
 
-    return trajectories_segments, transformation_matrices
+    return trajectories_segments, np.array(transformation_matrices)
 
 
-def main():
+def welding_paths_detection(mesh_path=FLAGS.mesh_path):
     try:
-        mesh = o3d.io.read_triangle_mesh(FLAGS.mesh_path)
+        mesh = o3d.io.read_triangle_mesh(mesh_path)
         mesh.compute_vertex_normals()
     except:
         print("Error reading triangle mesh")
@@ -309,7 +310,7 @@ def main():
     point_cloud = reconstruction_filter(point_cloud)
 
     # --------Detection----------
-    predicted_edges_only = edge_detection(point_cloud)
+    predicted_edges_only = edge_detection(point_cloud, k_n=60, thresh=0.02)
 
     predictions = rbw_inference(FLAGS, np.asarray(point_cloud.points))  # VOTENET
     bboxes = parse_bounding_boxes(predictions)
@@ -322,19 +323,29 @@ def main():
 
     # --------Post-process----------
 
+    welding_paths = []
     for indices in intersection_point_indices_list:
         if len(indices) == 0: continue
         trajectories_segments, transformation_matrices = detect_trajectories(predicted_edges_only, indices, colorize=True)
         pcds.extend(trajectories_segments)
+        welding_paths.append(transformation_matrices)
+
+    welding_paths = np.array(welding_paths)
 
     # path = path_finder(intersection_points)
     # pcds.append(path)
 
-    # pcds.append(intersection_points)
     pcds.append(predicted_edges_only)
 
     o3d.visualization.draw_geometries(pcds)
 
+    """
+    welding path numpy array format:
+             welding lines xN
+    starting/ending points x2
+    transformation matrix 4x4
+    """
+    return welding_paths
 
 if __name__ == '__main__':
-    main()
+    welding_paths_detection()

@@ -1,17 +1,12 @@
-import ctypes
-import logging
 import os
 import shutil
-import signal
 import threading
 import glob
 import time
 from functools import partial
-from typing import List
 import simplejson as json
-from threading import Event
-from pathlib import Path
 import sys
+import numpy as np
 
 # TODO: import the following from roboweldar-networking
 from roboweldar_networking.interfaces import ws_client
@@ -29,7 +24,7 @@ OUTPUT_FILE = os.path.join(OUTPUT_DIR, "welding_paths.npy")
 MESH_DIR = os.path.join(BASE_DIR, "reconstructed_mesh")
 
 print(BASE_DIR)
-import welding_path_generation
+from pipeline import welding_paths_detection
 from welding_path_generation import *
 
 is_done = False
@@ -73,8 +68,8 @@ def create_folder(path_to_dir: str):
 def start():
 
     #TODO execute pipeline
-    wpaths= get_dum_welding_paths()
-    save_welding_paths(wpaths, OUTPUT_FILE)
+    wpaths = welding_paths_detection("/home/innovation/Projects/meshroom_workspace/reconstruction_2/transformed_mesh/transformed_mesh.obj")
+    np.save(wpaths, OUTPUT_FILE)
 
     is_done = True
     message = "Done welding path detection..."

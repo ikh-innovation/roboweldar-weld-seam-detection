@@ -1,7 +1,7 @@
 import numpy as np
 import os
 
-
+# TODO DEPRICATED********************
 def get_dum_welding_paths():
     wpaths = []
 
