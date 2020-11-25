@@ -9,13 +9,13 @@ import itertools
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--mesh_path',
-                    default="/home/innovation/Downloads/2020.09.29/part_2/transformed_mesh/transformed_mesh.obj",
                     type=str, help='Mesh absolute path.')
 parser.add_argument('--filter_empty_boxes_num', type=int, default=1000,
                     help='Do not consider bounding boxes that contain less than this amount of points.')
 FLAGS = parser.parse_args()
 
 FLAGS.checkpoint_dir = 'log_panelnet/log_10-08-18:15'
+# FLAGS.checkpoint_dir = 'log_panelnet/log_11-23-13:01'
 FLAGS.cluster_sampling = 'vote_fps'
 FLAGS.conf_thresh = 0.8
 FLAGS.dataset = 'panelnet'
@@ -26,11 +26,12 @@ FLAGS.num_point = 300000
 FLAGS.num_target = 1024
 FLAGS.per_class_proposal = False
 FLAGS.use_3d_nms = True
-FLAGS.use_cls_nms = False
+FLAGS.use_cls_nms = True
 FLAGS.use_color = False
 FLAGS.use_height = False
 FLAGS.use_old_type_nms = False
 FLAGS.vote_factor = 1
+FLAGS.min_points_2b_empty = 500
 
 ##TESTING
 FLAGS.mesh_path = "/home/innovation/Downloads/2020.09.29/part_2/transformed_mesh/transformed_mesh.obj"
@@ -45,7 +46,7 @@ VOTENET_DIR = "/home/innovation/Projects/pytorch/votenet/"
 sys.path.append(VOTENET_DIR)
 sys.path.append(ROOT_DIR)
 from inference import rbw_inference
-from prediction import edge_detection
+from algorithms import edge_detection, panel_registration
 from lineMesh import LineMesh
 
 
@@ -118,7 +119,7 @@ def edges_within_bboxes(bboxes:[o3d.geometry.OrientedBoundingBox], edges_pt: o3d
         in_box_edges = index_pointcloud(edges_pt, indices)
         in_box_edges.paint_uniform_color([1., 0., 0.])
 
-        if len(indices) < FLAGS.filter_empty_boxes_num: continue
+        # if len(indices) < FLAGS.filter_empty_boxes_num: continue #TODO
 
         filtered_bboxes_edges_indices.append(indices)
         filtered_bboxes.append(bbox)
@@ -208,9 +209,9 @@ def detect_trajectories(pointcloud: o3d.geometry.PointCloud, indices:[int], colo
     assert pointcloud.has_normals(), "pointcloud is missing normals"
     #CLUSTERING
     dataset = np.asarray(pointcloud.points)[indices]
-    # cluster_algorithm = mixture.GaussianMixture(n_components=clusters_num, covariance_type='full', init_params='random', n_init=10, verbose=True).fit(dataset)
+    cluster_algorithm = mixture.GaussianMixture(n_components=clusters_num, covariance_type='full', init_params='random', n_init=10, verbose=True).fit(dataset)
     # cluster_algorithm = mixture.BayesianGaussianMixture(n_components=clusters_num, covariance_type='full').fit(dataset)
-    cluster_algorithm = cluster.OPTICS(min_cluster_size=100).fit(dataset)
+    # cluster_algorithm = cluster.OPTICS(min_cluster_size=100).fit(dataset)
 
     if hasattr(cluster_algorithm, 'labels_'):
         predictions = cluster_algorithm.labels_.astype(np.int)
@@ -317,6 +318,11 @@ def welding_paths_detection(mesh_path=FLAGS.mesh_path):
 
     filtered_bboxes, _, filtered_bboxes_edges_indices = edges_within_bboxes(bboxes, predicted_edges_only)
     pcds.extend(filtered_bboxes)
+    pointboxes = panel_registration(point_cloud, filtered_bboxes)
+    pcds.extend(pointboxes)
+    axis = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
+    pcds.append(axis)
+
 
     intersection_point_indices_list = edge_intersection(predicted_edges_only, filtered_bboxes_edges_indices)
     # TODO detect edges in specific panels

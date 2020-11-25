@@ -44,6 +44,36 @@ def panel_detection(pcd: o3d.geometry.PointCloud):
     print(result_ransac)
     draw_registration_result(source_down, target_down, result_ransac.transformation)
 
+def pointcloud_from_bounding_box(bbox: o3d.geometry.AxisAlignedBoundingBox, pt_num=2000) -> o3d.geometry.PointCloud:
+    bpoints = bbox.get_box_points()
+    print(np.asarray(bpoints))
+    bpointcloud = o3d.geometry.PointCloud()
+    bpointcloud.points = bpoints
+    hull, _ = bpointcloud.compute_convex_hull()
+    pt = hull.sample_points_uniformly(pt_num)
+    return pt
+
+def panel_registration(pcd: o3d.geometry.PointCloud, bboxes: [o3d.geometry.AxisAlignedBoundingBox]):
+    pointboxes = [pointcloud_from_bounding_box(bbox) for bbox in bboxes]
+
+    # source = pcd
+    # target = box_pt
+    # trans_init = np.asarray([[0.0, 0.0, 1.0, 0.0], [1.0, 0.0, 0.0, 0.0],
+    #                          [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0]])
+    # # source.transform(trans_init)
+    # # draw_registration_result(source, target, np.identity(4))
+    #
+    # voxel_size = 0.005
+    # source_down, source_fpfh = preprocess_point_cloud(pcd, voxel_size)
+    # target_down, target_fpfh = preprocess_point_cloud(box_pt, voxel_size)
+    #
+    # result_ransac = execute_global_registration(source_down, target_down,
+    #                                             source_fpfh, target_fpfh,
+    #                                             voxel_size)
+    # print(result_ransac)
+    # draw_registration_result(source_down, target_down, result_ransac.transformation)
+    return pointboxes
+
 
 def draw_registration_result(source, target, transformation):
     print("transformation", transformation)
