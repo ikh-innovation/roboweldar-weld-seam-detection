@@ -17,6 +17,7 @@ def mesh2pointcloud(mesh_path: str, point_num: int) -> o3d.geometry.PointCloud:
 
     return pointcloud
 
+
 def panel_detection(pcd: o3d.geometry.PointCloud):
     type_mean_size = {'panel': np.array([0.012, 0.30, 0.20]),
                            'hpanel': np.array([0.30, 0.30, 0.012])}
@@ -44,36 +45,35 @@ def panel_detection(pcd: o3d.geometry.PointCloud):
     print(result_ransac)
     draw_registration_result(source_down, target_down, result_ransac.transformation)
 
-def pointcloud_from_bounding_box(bbox: o3d.geometry.AxisAlignedBoundingBox, pt_num=2000) -> o3d.geometry.PointCloud:
+
+def pointcloud_from_bounding_box(bbox: o3d.geometry.AxisAlignedBoundingBox, pt_num=5000) -> o3d.geometry.PointCloud:
     bpoints = bbox.get_box_points()
-    print(np.asarray(bpoints))
     bpointcloud = o3d.geometry.PointCloud()
     bpointcloud.points = bpoints
     hull, _ = bpointcloud.compute_convex_hull()
     pt = hull.sample_points_uniformly(pt_num)
+    pt.estimate_normals()
+    pt.paint_uniform_color([0.5, 0.5, 0.5])
     return pt
 
-def panel_registration(pcd: o3d.geometry.PointCloud, bboxes: [o3d.geometry.AxisAlignedBoundingBox]):
-    pointboxes = [pointcloud_from_bounding_box(bbox) for bbox in bboxes]
 
-    # source = pcd
-    # target = box_pt
-    # trans_init = np.asarray([[0.0, 0.0, 1.0, 0.0], [1.0, 0.0, 0.0, 0.0],
-    #                          [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0]])
-    # # source.transform(trans_init)
-    # # draw_registration_result(source, target, np.identity(4))
-    #
-    # voxel_size = 0.005
-    # source_down, source_fpfh = preprocess_point_cloud(pcd, voxel_size)
-    # target_down, target_fpfh = preprocess_point_cloud(box_pt, voxel_size)
-    #
-    # result_ransac = execute_global_registration(source_down, target_down,
-    #                                             source_fpfh, target_fpfh,
-    #                                             voxel_size)
-    # print(result_ransac)
-    # draw_registration_result(source_down, target_down, result_ransac.transformation)
+def panel_registration(pcd: o3d.geometry.PointCloud, bboxes: [o3d.geometry.AxisAlignedBoundingBox], pt_num: int):
+    pointboxes = []
+    for bbox in bboxes:
+        pointbox = pointcloud_from_bounding_box(bbox, pt_num)
+        # point to plane ICP
+        current_transformation = np.identity(4)
+        print("2. Point-to-plane ICP registration is applied on original point")
+        print("   clouds to refine the alignment. Distance threshold 0.02.")
+        result_icp = o3d.registration.registration_icp(pointbox, pcd, 0.02, current_transformation,
+            o3d.registration.TransformationEstimationPointToPlane())
+        pointboxes.append(pointbox)
+        print(result_icp.transformation)
+        bbox.rotate(result_icp.transformation[:3,:3], bbox.get_center())
+        bbox.translate(result_icp.transformation[0:3,3])
+        draw_registration_result(pointbox, pcd, result_icp.transformation)
+
     return pointboxes
-
 
 def draw_registration_result(source, target, transformation):
     print("transformation", transformation)

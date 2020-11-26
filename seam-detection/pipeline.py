@@ -318,10 +318,11 @@ def welding_paths_detection(mesh_path=FLAGS.mesh_path):
 
     filtered_bboxes, _, filtered_bboxes_edges_indices = edges_within_bboxes(bboxes, predicted_edges_only)
     pcds.extend(filtered_bboxes)
-    pointboxes = panel_registration(point_cloud, filtered_bboxes)
-    pcds.extend(pointboxes)
+    pointboxes = panel_registration(point_cloud, filtered_bboxes, int(FLAGS.num_point/30))
+    # pcds.extend(pointboxes)
     axis = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
-    pcds.append(axis)
+    # pcds.append(axis)
+    # pcds.append(point_cloud)
 
 
     intersection_point_indices_list = edge_intersection(predicted_edges_only, filtered_bboxes_edges_indices)
