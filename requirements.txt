@@ -36,7 +36,7 @@ nbformat==5.0.7
 nest-asyncio==1.4.1
 notebook==6.1.4
 numpy @ file:///tmp/build/80754af9/numpy_and_numpy_base_1596233721170/work
-open3d==0.10.0.0
+open3d==0.11.2.0
 packaging==20.4
 pandocfilters==1.4.2
 parso==0.7.1

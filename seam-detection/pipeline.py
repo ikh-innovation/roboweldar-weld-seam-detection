@@ -14,8 +14,10 @@ parser.add_argument('--filter_empty_boxes_num', type=int, default=1000,
                     help='Do not consider bounding boxes that contain less than this amount of points.')
 FLAGS = parser.parse_args()
 
-FLAGS.checkpoint_dir = 'log_panelnet/log_10-08-18:15'
+# FLAGS.checkpoint_dir = 'log_panelnet/log_11-27-13:38'
+FLAGS.checkpoint_dir = 'log_panelnet/log_11-25-16:33'
 # FLAGS.checkpoint_dir = 'log_panelnet/log_11-23-13:01'
+# FLAGS.checkpoint_dir = 'log_panelnet/log_12-01-17:36'
 FLAGS.cluster_sampling = 'vote_fps'
 FLAGS.conf_thresh = 0.8
 FLAGS.dataset = 'panelnet'
@@ -31,10 +33,10 @@ FLAGS.use_color = False
 FLAGS.use_height = False
 FLAGS.use_old_type_nms = False
 FLAGS.vote_factor = 1
-FLAGS.min_points_2b_empty = 500
+FLAGS.min_points_2b_empty = 900
 
 ##TESTING
-FLAGS.mesh_path = "/home/innovation/Downloads/2020.09.29/part_2/transformed_mesh/transformed_mesh.obj"
+FLAGS.mesh_path = "/home/innovation/Downloads/2020.09.29/part_2/transformed_mesh/copy/transformed_mesh.obj"
 # FLAGS.mesh_path = "/home/innovation/Projects/meshroom_workspace/reconstruction_1/transformed_mesh/transformed_mesh.obj" #Π
 # FLAGS.mesh_path = "/home/innovation/Projects/meshroom_workspace/reconstruction_2/transformed_mesh/transformed_mesh.obj" #Τ
 # FLAGS.mesh_path = "/home/innovation/Projects/pytorch/votenet/panelnet/pc.ply"
@@ -203,15 +205,19 @@ def make_3d_path(points, path):
 def detect_trajectories(pointcloud: o3d.geometry.PointCloud, indices:[int], colorize=True, clusters_num=2, ransac_threshold = 0.002) -> ([o3d.geometry.Geometry3D], np.ndarray(shape=(4,4,2))):
     import itertools
     from sklearn import mixture, cluster
+    from sklearn.neighbors import kneighbors_graph
     from skimage.measure import LineModelND, ransac
     from matplotlib import pyplot as plt
 
     assert pointcloud.has_normals(), "pointcloud is missing normals"
     #CLUSTERING
     dataset = np.asarray(pointcloud.points)[indices]
-    cluster_algorithm = mixture.GaussianMixture(n_components=clusters_num, covariance_type='full', init_params='random', n_init=10, verbose=True).fit(dataset)
+    cluster_algorithm = mixture.GaussianMixture(n_components=clusters_num, covariance_type='full', init_params='random', n_init=100, verbose=True).fit(dataset)
     # cluster_algorithm = mixture.BayesianGaussianMixture(n_components=clusters_num, covariance_type='full').fit(dataset)
-    # cluster_algorithm = cluster.OPTICS(min_cluster_size=100).fit(dataset)
+    # cluster_algorithm = cluster.OPTICS(min_cluster_size=int(len(dataset)/10)).fit(dataset)
+
+    # knn_graph = kneighbors_graph(dataset, 10, include_self=False)
+    # cluster_algorithm = cluster.AgglomerativeClustering(linkage='ward', connectivity=knn_graph, n_clusters=clusters_num).fit(dataset)
 
     if hasattr(cluster_algorithm, 'labels_'):
         predictions = cluster_algorithm.labels_.astype(np.int)
@@ -235,6 +241,7 @@ def detect_trajectories(pointcloud: o3d.geometry.PointCloud, indices:[int], colo
     transformation_matrices = []
     for cl in range(clusters_num):
         cluster = dataset[predictions == cl]
+        if len(cluster) < 3 : continue
 
         # robustly fit line only using inlier data with RANSAC algorithm
         model_robust, inliers = ransac(cluster, LineModelND, min_samples=2, residual_threshold=ransac_threshold, max_trials=10000)
@@ -245,6 +252,10 @@ def detect_trajectories(pointcloud: o3d.geometry.PointCloud, indices:[int], colo
         line_x = np.array([cluster[inliers][:, 0].min(), cluster[inliers][:, 0].max()], dtype=np.float64)
         # predict the 2 points of the best fitting line
         line_ransac = model_robust.predict(line_x)
+        # marginalize line
+        for i in range(3):
+            line_ransac[0, i] = cluster[inliers][:, i].min() if line_ransac[0, i] < cluster[inliers][:, i].min() else line_ransac[0, i]
+            line_ransac[1, i] = cluster[inliers][:, i].max() if line_ransac[1, i] > cluster[inliers][:, i].max() else line_ransac[1, i]
         # calculate the direction vector of the line
         line_direction = (line_ransac[1] - line_ransac[0])
         line_direction /= np.linalg.norm(line_direction)
@@ -272,7 +283,7 @@ def detect_trajectories(pointcloud: o3d.geometry.PointCloud, indices:[int], colo
         trans_matrix_end = np.append(trans_matrix, line_end, axis=1)
 
         lines_points.append(line_ransac)
-        correspondences.append([cl * 2, cl * 2 + 1])
+        correspondences.append([(len(lines_points)-1) * 2, (len(lines_points)-1) * 2 + 1])
         transformation_matrices.append(np.array([trans_matrix_begin, trans_matrix_end]))
 
     #VISUALIZATION
@@ -282,6 +293,7 @@ def detect_trajectories(pointcloud: o3d.geometry.PointCloud, indices:[int], colo
     cluster_colors = [yellow for i in range(len(correspondences))]
     trajectories = LineMesh(points, correspondences, cluster_colors, radius=ransac_threshold)
     trajectories_segments = trajectories.cylinder_segments
+    for seg in trajectories_segments: seg.compute_vertex_normals()
 
     # for every line, create and display the normal of it
     flat_trans_matrices = [item for sublist in transformation_matrices for item in sublist]
@@ -290,6 +302,7 @@ def detect_trajectories(pointcloud: o3d.geometry.PointCloud, indices:[int], colo
         arrow = o3d.geometry.TriangleMesh.create_arrow(cylinder_radius=ransac_threshold,cone_radius=ransac_threshold*1.3, cylinder_height=ransac_threshold*20, cone_height=ransac_threshold*3)
         arrow.paint_uniform_color(yellow)
         arrow.transform(mtx)
+        arrow.compute_vertex_normals()
         trajectories_segments.append(arrow)
 
     return trajectories_segments, np.array(transformation_matrices)
@@ -311,19 +324,23 @@ def welding_paths_detection(mesh_path=FLAGS.mesh_path):
     point_cloud = reconstruction_filter(point_cloud)
 
     # --------Detection----------
-    predicted_edges_only = edge_detection(point_cloud, k_n=60, thresh=0.02)
+    predicted_edges_only = edge_detection(point_cloud, k_n=80, thresh=0.015)
 
     predictions = rbw_inference(FLAGS, np.asarray(point_cloud.points))  # VOTENET
     bboxes = parse_bounding_boxes(predictions)
 
-    filtered_bboxes, _, filtered_bboxes_edges_indices = edges_within_bboxes(bboxes, predicted_edges_only)
-    pcds.extend(filtered_bboxes)
-    pointboxes = panel_registration(point_cloud, filtered_bboxes, int(FLAGS.num_point/30))
+    pcds2 = [mesh] + bboxes
+    o3d.visualization.draw_geometries(pcds2)
+
+    panel_registration(point_cloud, bboxes, int(FLAGS.num_point/30))
     # pcds.extend(pointboxes)
-    axis = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
+    # axis = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
     # pcds.append(axis)
     # pcds.append(point_cloud)
 
+    filtered_bboxes, _, filtered_bboxes_edges_indices = edges_within_bboxes(bboxes, predicted_edges_only)
+    pcds.extend(filtered_bboxes)
+    # o3d.visualization.draw_geometries(pcds)
 
     intersection_point_indices_list = edge_intersection(predicted_edges_only, filtered_bboxes_edges_indices)
     # TODO detect edges in specific panels
