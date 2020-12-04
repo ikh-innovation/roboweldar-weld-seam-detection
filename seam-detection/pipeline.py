@@ -202,50 +202,28 @@ def make_3d_path(points, path):
     return line
 
 
-def detect_trajectories(pointcloud: o3d.geometry.PointCloud, indices:[int], colorize=True, clusters_num=2, ransac_threshold = 0.002) -> ([o3d.geometry.Geometry3D], np.ndarray(shape=(4,4,2))):
+def detect_trajectories(edges_pointcloud: o3d.geometry.PointCloud, indices:[int], colorize=True, clusters_num=2, ransac_threshold = 0.003) -> ([o3d.geometry.Geometry3D], np.ndarray(shape=(4,4,2))):
+    '''Finds trajectory lines given an edge pointcloud and the indices of the edges that are the union of 2 panels. Returns two mesh lines and a transformation matrix'''
     import itertools
     from sklearn import mixture, cluster
     from sklearn.neighbors import kneighbors_graph
     from skimage.measure import LineModelND, ransac
     from matplotlib import pyplot as plt
 
-    assert pointcloud.has_normals(), "pointcloud is missing normals"
-    #CLUSTERING
-    dataset = np.asarray(pointcloud.points)[indices]
-    cluster_algorithm = mixture.GaussianMixture(n_components=clusters_num, covariance_type='full', init_params='random', n_init=100, verbose=True).fit(dataset)
-    # cluster_algorithm = mixture.BayesianGaussianMixture(n_components=clusters_num, covariance_type='full').fit(dataset)
-    # cluster_algorithm = cluster.OPTICS(min_cluster_size=int(len(dataset)/10)).fit(dataset)
+    assert edges_pointcloud.has_normals(), "pointcloud is missing normals"
+    selected_edge_points = np.asarray(edges_pointcloud.points)[indices]
 
-    # knn_graph = kneighbors_graph(dataset, 10, include_self=False)
-    # cluster_algorithm = cluster.AgglomerativeClustering(linkage='ward', connectivity=knn_graph, n_clusters=clusters_num).fit(dataset)
-
-    if hasattr(cluster_algorithm, 'labels_'):
-        predictions = cluster_algorithm.labels_.astype(np.int)
-    else:
-        predictions = cluster_algorithm.predict(dataset)
-
-    if colorize:
-        cluster_colors = []
-        colors_per_cluster = [np.random.choice(range(10), size=3)*0.1 for _ in range(-5, 50)]
-        for cl in predictions:
-            cluster_colors.append(colors_per_cluster[cl])
-
-        edge_colors = np.asarray(pointcloud.colors)
-        edge_colors[indices] = cluster_colors
-
-        pointcloud.colors = o3d.utility.Vector3dVector(edge_colors)
-
-    #RANSAC LINE FITTING FOR EVERY CLUSTER
+    # RANSAC LINE FITTING
+    # First finds the best fitting line, and then repeats the proccess on all points except the previous inliers.
     lines_points = []
     correspondences = []
     transformation_matrices = []
-    for cl in range(clusters_num):
-        cluster = dataset[predictions == cl]
-        if len(cluster) < 3 : continue
+    cluster_indices = np.ones(selected_edge_points.shape[0], dtype=bool)
 
-        # robustly fit line only using inlier data with RANSAC algorithm
+    for cl in range(2):
+        cluster = selected_edge_points[cluster_indices]
+
         model_robust, inliers = ransac(cluster, LineModelND, min_samples=2, residual_threshold=ransac_threshold, max_trials=10000)
-        outliers = inliers == False
 
         #TRANSFORMATION MATRIX
         # get the beginning and the end of the line to be predicted
@@ -260,7 +238,7 @@ def detect_trajectories(pointcloud: o3d.geometry.PointCloud, indices:[int], colo
         line_direction = (line_ransac[1] - line_ransac[0])
         line_direction /= np.linalg.norm(line_direction)
         # calculate the normal of the line based on all the normals of the inlier points
-        mean_normal = np.mean(np.asarray(pointcloud.normals)[indices][predictions == cl][inliers], axis=0, dtype=np.float64)
+        mean_normal = np.mean(np.asarray(edges_pointcloud.normals)[indices][cluster_indices][inliers], axis=0, dtype=np.float64)
         mean_normal /= np.linalg.norm(mean_normal)
         #calculate the 3rd axis
         cross_product = np.cross(line_direction, mean_normal)
@@ -285,6 +263,9 @@ def detect_trajectories(pointcloud: o3d.geometry.PointCloud, indices:[int], colo
         lines_points.append(line_ransac)
         correspondences.append([(len(lines_points)-1) * 2, (len(lines_points)-1) * 2 + 1])
         transformation_matrices.append(np.array([trans_matrix_begin, trans_matrix_end]))
+
+        # removing the inliers for the next iteration
+        if cl == 0: cluster_indices[inliers] = False
 
     #VISUALIZATION
     # create a line mesh for each one
@@ -324,13 +305,13 @@ def welding_paths_detection(mesh_path=FLAGS.mesh_path):
     point_cloud = reconstruction_filter(point_cloud)
 
     # --------Detection----------
-    predicted_edges_only = edge_detection(point_cloud, k_n=80, thresh=0.015)
+    predicted_edges_only = edge_detection(point_cloud, k_n=60, thresh=0.005)
 
     predictions = rbw_inference(FLAGS, np.asarray(point_cloud.points))  # VOTENET
     bboxes = parse_bounding_boxes(predictions)
 
-    pcds2 = [mesh] + bboxes
-    o3d.visualization.draw_geometries(pcds2)
+    # pcds2 = [mesh] + bboxes
+    # o3d.visualization.draw_geometries(pcds2)
 
     panel_registration(point_cloud, bboxes, int(FLAGS.num_point/30))
     # pcds.extend(pointboxes)
