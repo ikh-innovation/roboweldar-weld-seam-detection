@@ -42,13 +42,12 @@ def panel_detection(pcd: o3d.geometry.PointCloud):
     result_ransac = execute_global_registration(source_down, target_down,
                                                 source_fpfh, target_fpfh,
                                                 voxel_size)
-    print(result_ransac)
+
     draw_registration_result(source_down, target_down, result_ransac.transformation)
 
 
 def pointcloud_from_bounding_box(bbox: o3d.geometry.AxisAlignedBoundingBox, pt_num=5000) -> o3d.geometry.PointCloud:
     bpoints = bbox.get_box_points()
-    print(np.asarray(bpoints))
     bpointcloud = o3d.geometry.PointCloud()
     bpointcloud.points = bpoints
     hull, _ = bpointcloud.compute_convex_hull()
@@ -58,7 +57,7 @@ def pointcloud_from_bounding_box(bbox: o3d.geometry.AxisAlignedBoundingBox, pt_n
     return pt
 
 
-def panel_registration(pcd: o3d.geometry.PointCloud, bboxes: [o3d.geometry.AxisAlignedBoundingBox], pt_num: int):
+def panel_registration(pcd: o3d.geometry.PointCloud, bboxes: [o3d.geometry.AxisAlignedBoundingBox], pt_num: int, icp_thresh=0.05):
     pointboxes = []
     for bbox in bboxes:
         pointbox = pointcloud_from_bounding_box(bbox, pt_num)
@@ -66,11 +65,10 @@ def panel_registration(pcd: o3d.geometry.PointCloud, bboxes: [o3d.geometry.AxisA
         current_transformation = np.identity(4)
         print("2. Point-to-plane ICP registration is applied on original point")
         print("   clouds to refine the alignment. Distance threshold 0.02.")
-        result_icp = o3d.pipelines.registration.registration_icp(pointbox, pcd, 0.05, current_transformation,
+        result_icp = o3d.pipelines.registration.registration_icp(pointbox, pcd, icp_thresh, current_transformation,
             o3d.pipelines.registration.TransformationEstimationPointToPlane(),
                     o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=5000))
         pointboxes.append(pointbox)
-        print(result_icp.transformation)
         bbox.translate(result_icp.transformation[0:3,3])
         bbox.rotate(result_icp.transformation[:3,:3], result_icp.transformation[0:3,3])
         bbox.scale(1.1, bbox.get_center())
@@ -79,7 +77,6 @@ def panel_registration(pcd: o3d.geometry.PointCloud, bboxes: [o3d.geometry.AxisA
     return pointboxes
 
 def draw_registration_result(source, target, transformation):
-    print("transformation", transformation)
     source_temp = copy.deepcopy(source)
     target_temp = copy.deepcopy(target)
     source_temp.paint_uniform_color([1, 0.706, 0])
@@ -181,7 +178,6 @@ def main(config: Config):
     if len(pcd.points) == 0:
         pcd = mesh2pointcloud(pcd_path, 1000000)
 
-    print(pcd)
     # mesh = o3d.io.read_triangle_mesh("ArtificialPointClouds/welding_area.obj")
 
     panel_detection(pcd)

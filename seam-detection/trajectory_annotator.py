@@ -1,4 +1,3 @@
-
 import open3d as o3d
 import json
 import numpy as np
@@ -6,8 +5,7 @@ import os
 from lineMesh import LineMesh
 
 
-
-def json2bboxes(data: json):
+def json2bboxes(data: json) -> [o3d.geometry.OrientedBoundingBox, []]:
     '''Author:lefteris '''
     labelboxes = []
     object_list = []
@@ -30,6 +28,10 @@ def json2bboxes(data: json):
         labelboxes.append(boxx)
         object_list.append(obb)
     return labelboxes, object_list
+
+
+def json2trajectories(data: json):
+    return json.loads(data['point_lines'])
 
 
 def box_from_points(obb):
@@ -59,6 +61,7 @@ def box_from_points(obb):
 
     return box3d
 
+
 def pick_points(pcd):
     print("")
     print("1) Please pick two correspondences using [shift + left click]")
@@ -71,6 +74,7 @@ def pick_points(pcd):
     vis.destroy_window()
     print("")
     return vis.get_picked_points()
+
 
 def create_mesh_lines(point_lines):
     mesh_lines = []
@@ -96,45 +100,47 @@ def choose_trajectories(pcd, lines_num=2):
     return point_lines
 
 
-
 if __name__ == '__main__':
-    data_path = "/home/innovation/Downloads/labeled_welding_scenes"
+    # data_path = "/home/innovation/Downloads/labeled_welding_scenes"
+    data_path = "/home/innovation/Projects/roboweldar-weld-seam-detection/seam-detection/welding_scenes_eval"
     scene_names = sorted(list(os.listdir(data_path)))
 
-    selected_scene_name = scene_names[20]
-    selected_scene = os.path.join(data_path, selected_scene_name, selected_scene_name)
+    for name in scene_names:
+        selected_scene_name = name #scene_names[4]
+        selected_scene = os.path.join(data_path, selected_scene_name, selected_scene_name)
 
-    with open(selected_scene + ".json", 'r') as f:
-        jsondata = json.load(f)
+        with open(selected_scene + ".json", 'r') as f:
+            jsondata = json.load(f)
 
-    print(jsondata)
-    bboxes, bbox_labels = json2bboxes(jsondata)
-    to_display = bboxes
+        bboxes, bbox_labels = json2bboxes(jsondata)
+        to_display = bboxes
 
-    obj = o3d.io.read_triangle_mesh(selected_scene + ".obj")
-    obj.compute_vertex_normals()
-    to_display.append(obj)
+        obj = o3d.io.read_triangle_mesh(selected_scene + ".obj")
+        obj.compute_vertex_normals()
+        to_display.append(obj)
 
-    if 'point_lines' in jsondata:
-        print("Trajectories detected. Visualizing...")
-        mesh_lines = create_mesh_lines(json.loads(jsondata['point_lines']))
+        if 'point_lines' in jsondata:
+            # print("Trajectories detected. Visualizing...")
+            # mesh_lines = create_mesh_lines(json2trajectories(jsondata))
+            # to_display.extend(mesh_lines)
+            # o3d.visualization.draw_geometries(to_display)
+            # quit()
+            print("Trajectories detected. Skipping...")
+            continue
+
+
+        # pcd = o3d.io.read_point_cloud(selected_scene + ".pcd")
+        pcd = obj.sample_points_uniformly(5000000)
+        to_display.append(pcd)
+
+        point_lines = choose_trajectories(pcd, 4)
+
+        mesh_lines = create_mesh_lines(point_lines)
         to_display.extend(mesh_lines)
+
         o3d.visualization.draw_geometries(to_display)
-        quit()
 
-    # pcd = o3d.io.read_point_cloud(selected_scene + ".pcd")
-    pcd = obj.sample_points_uniformly(5000000)
-    to_display.append(pcd)
-
-    point_lines = choose_trajectories(pcd)
-
-    mesh_lines = create_mesh_lines(point_lines)
-    to_display.extend(mesh_lines)
-
-    o3d.visualization.draw_geometries(to_display)
-
-    #save to json file
-    jsondata['point_lines'] = json.dumps(point_lines)
-    with open(selected_scene + ".json", 'w') as f:
-        json.dump(jsondata, f, indent=4)
-
+        # save to json file
+        jsondata['point_lines'] = json.dumps(point_lines)
+        with open(selected_scene + ".json", 'w') as f:
+            json.dump(jsondata, f, indent=4)

@@ -17,7 +17,9 @@ FLAGS = parser.parse_args()
 # FLAGS.checkpoint_dir = 'log_panelnet/log_11-27-13:38'
 FLAGS.checkpoint_dir = 'log_panelnet/log_11-25-16:33'
 # FLAGS.checkpoint_dir = 'log_panelnet/log_11-23-13:01'
+# FLAGS.checkpoint_dir = 'log_panelnet/log_11-30-11:48'
 # FLAGS.checkpoint_dir = 'log_panelnet/log_12-01-17:36'
+# FLAGS.checkpoint_dir = 'log_panelnet/log_12-08-10:44'
 FLAGS.cluster_sampling = 'vote_fps'
 FLAGS.conf_thresh = 0.8
 FLAGS.dataset = 'panelnet'
@@ -33,12 +35,13 @@ FLAGS.use_color = False
 FLAGS.use_height = False
 FLAGS.use_old_type_nms = False
 FLAGS.vote_factor = 1
-FLAGS.min_points_2b_empty = 900
+FLAGS.min_points_2b_empty = 700
 
 ##TESTING
 FLAGS.mesh_path = "/home/innovation/Downloads/2020.09.29/part_2/transformed_mesh/copy/transformed_mesh.obj"
 # FLAGS.mesh_path = "/home/innovation/Projects/meshroom_workspace/reconstruction_1/transformed_mesh/transformed_mesh.obj" #Π
 # FLAGS.mesh_path = "/home/innovation/Projects/meshroom_workspace/reconstruction_2/transformed_mesh/transformed_mesh.obj" #Τ
+FLAGS.mesh_path = "/home/innovation/Projects/roboweldar-weld-seam-detection/seam-detection/welding_scenes_eval/21/21.obj"
 # FLAGS.mesh_path = "/home/innovation/Projects/pytorch/votenet/panelnet/pc.ply"
 
 # ------------Local Imports---------------
@@ -52,7 +55,7 @@ from algorithms import edge_detection, panel_registration
 from lineMesh import LineMesh
 
 
-def reconstruction_filter(point_cloud, filter_radius=0.5, negative_filter=-0.05):
+def reconstruction_filter(point_cloud, filter_radius=0.7, negative_filter=-0.1):
     """apply filters for Roboweldar reconstruction"""
 
     filter1 = lambda pts: np.linalg.norm(pts,
@@ -92,9 +95,9 @@ def parse_bounding_boxes(predictions):
     return bboxes
 
 
-def edge_intersection(edges: o3d.geometry.PointCloud, box_edge_indices: [[int]]) -> [[int]]:
+def points_intersection(edges: o3d.geometry.PointCloud, box_edge_indices: [[int]]) -> [[int]]:
     """ Gets a pointcloud and groups of indices that are inside a bounding box.
-     It returns groups of indices that are common within 2 aforementioned boxes."""
+     It returns groups of indices that are common within the 2 aforementioned boxes."""
 
     iter_indices_list = []
     colors = np.asarray(edges.colors)
@@ -178,7 +181,6 @@ def BFS_SP(graph, start, goal):
                 queue.append(new_path)
                 # Condition to check if the neighbour node is the goal
                 if neighbour == goal:
-                    print("Shortest path = ", *new_path)
                     return new_path
             explored.append(node)
         # Condition when the nodes are not connected
@@ -202,7 +204,7 @@ def make_3d_path(points, path):
     return line
 
 
-def detect_trajectories(edges_pointcloud: o3d.geometry.PointCloud, indices:[int], colorize=True, clusters_num=2, ransac_threshold = 0.003) -> ([o3d.geometry.Geometry3D], np.ndarray(shape=(4,4,2))):
+def detect_trajectories(edges_pointcloud: o3d.geometry.PointCloud, indices:[int], colorize=True, clusters_num=2, ransac_threshold = 0.003, vis=True) -> ([o3d.geometry.Geometry3D], np.ndarray(shape=(4,4,2))):
     '''Finds trajectory lines given an edge pointcloud and the indices of the edges that are the union of 2 panels. Returns two mesh lines and a transformation matrix'''
     import itertools
     from sklearn import mixture, cluster
@@ -267,29 +269,32 @@ def detect_trajectories(edges_pointcloud: o3d.geometry.PointCloud, indices:[int]
         # removing the inliers for the next iteration
         if cl == 0: cluster_indices[inliers] = False
 
-    #VISUALIZATION
-    # create a line mesh for each one
-    yellow = [1, 0.8, 0]
-    points = np.concatenate((*lines_points,), axis=0)
-    cluster_colors = [yellow for i in range(len(correspondences))]
-    trajectories = LineMesh(points, correspondences, cluster_colors, radius=ransac_threshold)
-    trajectories_segments = trajectories.cylinder_segments
-    for seg in trajectories_segments: seg.compute_vertex_normals()
+    if vis:
+        #VISUALIZATION
+        # create a line mesh for each one
+        yellow = [1, 0.8, 0]
+        points = np.concatenate((*lines_points,), axis=0)
+        cluster_colors = [yellow for i in range(len(correspondences))]
+        trajectories = LineMesh(points, correspondences, cluster_colors, radius=ransac_threshold)
+        trajectories_segments = trajectories.cylinder_segments
+        for seg in trajectories_segments: seg.compute_vertex_normals()
 
-    # for every line, create and display the normal of it
-    flat_trans_matrices = [item for sublist in transformation_matrices for item in sublist]
-    for i, mtx in enumerate(flat_trans_matrices):
-        # axis = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
-        arrow = o3d.geometry.TriangleMesh.create_arrow(cylinder_radius=ransac_threshold,cone_radius=ransac_threshold*1.3, cylinder_height=ransac_threshold*20, cone_height=ransac_threshold*3)
-        arrow.paint_uniform_color(yellow)
-        arrow.transform(mtx)
-        arrow.compute_vertex_normals()
-        trajectories_segments.append(arrow)
+        # for every line, create and display the normal of it
+        flat_trans_matrices = [item for sublist in transformation_matrices for item in sublist]
+        for i, mtx in enumerate(flat_trans_matrices):
+            # axis = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
+            arrow = o3d.geometry.TriangleMesh.create_arrow(cylinder_radius=ransac_threshold,cone_radius=ransac_threshold*1.3, cylinder_height=ransac_threshold*20, cone_height=ransac_threshold*3)
+            arrow.paint_uniform_color(yellow)
+            arrow.transform(mtx)
+            arrow.compute_vertex_normals()
+            trajectories_segments.append(arrow)
 
-    return trajectories_segments, np.array(transformation_matrices)
+        return trajectories_segments, np.array(transformation_matrices)
+    else:
+        return [], np.array(transformation_matrices)
 
 
-def welding_paths_detection(mesh_path=FLAGS.mesh_path):
+def welding_paths_detection(mesh_path=FLAGS.mesh_path, vis=True):
     try:
         mesh = o3d.io.read_triangle_mesh(mesh_path)
         mesh.compute_vertex_normals()
@@ -313,17 +318,17 @@ def welding_paths_detection(mesh_path=FLAGS.mesh_path):
     # pcds2 = [mesh] + bboxes
     # o3d.visualization.draw_geometries(pcds2)
 
-    panel_registration(point_cloud, bboxes, int(FLAGS.num_point/30))
+    panel_registration(point_cloud, bboxes, int(FLAGS.num_point/30), 0.08)
     # pcds.extend(pointboxes)
-    # axis = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
-    # pcds.append(axis)
+    axis = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
+    pcds.append(axis)
     # pcds.append(point_cloud)
 
     filtered_bboxes, _, filtered_bboxes_edges_indices = edges_within_bboxes(bboxes, predicted_edges_only)
     pcds.extend(filtered_bboxes)
     # o3d.visualization.draw_geometries(pcds)
 
-    intersection_point_indices_list = edge_intersection(predicted_edges_only, filtered_bboxes_edges_indices)
+    intersection_point_indices_list = points_intersection(predicted_edges_only, filtered_bboxes_edges_indices)
     # TODO detect edges in specific panels
 
     # --------Post-process----------
@@ -331,7 +336,7 @@ def welding_paths_detection(mesh_path=FLAGS.mesh_path):
     welding_paths = []
     for indices in intersection_point_indices_list:
         if len(indices) == 0: continue
-        trajectories_segments, transformation_matrices = detect_trajectories(predicted_edges_only, indices, colorize=True)
+        trajectories_segments, transformation_matrices = detect_trajectories(predicted_edges_only, indices, colorize=True, vis=vis)
         pcds.extend(trajectories_segments)
         welding_paths.append(transformation_matrices)
 
@@ -342,7 +347,7 @@ def welding_paths_detection(mesh_path=FLAGS.mesh_path):
 
     pcds.append(predicted_edges_only)
 
-    o3d.visualization.draw_geometries(pcds)
+    if vis: o3d.visualization.draw_geometries(pcds)
 
     """
     welding path numpy array format:
@@ -350,7 +355,7 @@ def welding_paths_detection(mesh_path=FLAGS.mesh_path):
     starting/ending points x2
     transformation matrix 4x4
     """
-    return welding_paths
+    return welding_paths, filtered_bboxes, point_cloud
 
 if __name__ == '__main__':
     welding_paths_detection()
