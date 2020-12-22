@@ -58,6 +58,7 @@ The pipeline consists of the following submodules:
     1. Main entry point (pipeline.py).
     2. Evaluation code
     3. Trajectory annotator
+- Fix `requirements.txt`
 
 
         
