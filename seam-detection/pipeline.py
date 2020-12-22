@@ -20,6 +20,7 @@ FLAGS.checkpoint_dir = 'log_panelnet/log_11-25-16:33'
 # FLAGS.checkpoint_dir = 'log_panelnet/log_11-30-11:48'
 # FLAGS.checkpoint_dir = 'log_panelnet/log_12-01-17:36'
 # FLAGS.checkpoint_dir = 'log_panelnet/log_12-08-10:44'
+FLAGS.checkpoint_dir = 'log_panelnet/log_12-15-10:25'
 FLAGS.cluster_sampling = 'vote_fps'
 FLAGS.conf_thresh = 0.8
 FLAGS.dataset = 'panelnet'
@@ -41,7 +42,7 @@ FLAGS.min_points_2b_empty = 700
 FLAGS.mesh_path = "/home/innovation/Downloads/2020.09.29/part_2/transformed_mesh/copy/transformed_mesh.obj"
 # FLAGS.mesh_path = "/home/innovation/Projects/meshroom_workspace/reconstruction_1/transformed_mesh/transformed_mesh.obj" #Π
 # FLAGS.mesh_path = "/home/innovation/Projects/meshroom_workspace/reconstruction_2/transformed_mesh/transformed_mesh.obj" #Τ
-FLAGS.mesh_path = "/home/innovation/Projects/roboweldar-weld-seam-detection/seam-detection/welding_scenes_eval/21/21.obj"
+# FLAGS.mesh_path = "/home/innovation/Projects/roboweldar-weld-seam-detection/seam-detection/welding_scenes_eval/21/21.obj"
 # FLAGS.mesh_path = "/home/innovation/Projects/pytorch/votenet/panelnet/pc.ply"
 
 # ------------Local Imports---------------
@@ -55,7 +56,7 @@ from algorithms import edge_detection, panel_registration
 from lineMesh import LineMesh
 
 
-def reconstruction_filter(point_cloud, filter_radius=0.7, negative_filter=-0.1):
+def reconstruction_filter(point_cloud, filter_radius=0.8, negative_filter=-0.15):
     """apply filters for Roboweldar reconstruction"""
 
     filter1 = lambda pts: np.linalg.norm(pts,
@@ -204,7 +205,7 @@ def make_3d_path(points, path):
     return line
 
 
-def detect_trajectories(edges_pointcloud: o3d.geometry.PointCloud, indices:[int], colorize=True, clusters_num=2, ransac_threshold = 0.003, vis=True) -> ([o3d.geometry.Geometry3D], np.ndarray(shape=(4,4,2))):
+def detect_trajectories(edges_pointcloud: o3d.geometry.PointCloud, indices:[int], colorize=True, clusters_num=2, ransac_threshold = 0.004, vis=True) -> ([o3d.geometry.Geometry3D], np.ndarray(shape=(4,4,2))):
     '''Finds trajectory lines given an edge pointcloud and the indices of the edges that are the union of 2 panels. Returns two mesh lines and a transformation matrix'''
     import itertools
     from sklearn import mixture, cluster
@@ -215,6 +216,11 @@ def detect_trajectories(edges_pointcloud: o3d.geometry.PointCloud, indices:[int]
     assert edges_pointcloud.has_normals(), "pointcloud is missing normals"
     selected_edge_points = np.asarray(edges_pointcloud.points)[indices]
 
+    print(len(selected_edge_points))
+    if len(selected_edge_points) < 50:
+        return [], None
+
+
     # RANSAC LINE FITTING
     # First finds the best fitting line, and then repeats the proccess on all points except the previous inliers.
     lines_points = []
@@ -224,6 +230,10 @@ def detect_trajectories(edges_pointcloud: o3d.geometry.PointCloud, indices:[int]
 
     for cl in range(2):
         cluster = selected_edge_points[cluster_indices]
+
+        if len(cluster)<3:
+            print("RANSAC SECOND TRAJECTORY WAS NOT DETECTED. SKIPPING.")
+            continue
 
         model_robust, inliers = ransac(cluster, LineModelND, min_samples=2, residual_threshold=ransac_threshold, max_trials=10000)
 
@@ -295,17 +305,18 @@ def detect_trajectories(edges_pointcloud: o3d.geometry.PointCloud, indices:[int]
 
 
 def welding_paths_detection(mesh_path=FLAGS.mesh_path, vis=True):
-    try:
+
+    if mesh_path.split(".")[1] == "pcd":
+        point_cloud = o3d.io.read_point_cloud(mesh_path)
+        point_cloud.estimate_normals()
+        pcds = [point_cloud]
+    else:
         mesh = o3d.io.read_triangle_mesh(mesh_path)
         mesh.compute_vertex_normals()
-    except:
-        print("Error reading triangle mesh")
-        exit(-1)
-
-    pcds = [mesh]
+        pcds = [mesh]
+        point_cloud = mesh.sample_points_uniformly(number_of_points=int(FLAGS.num_point))
 
     # --------Pre-process----------
-    point_cloud = mesh.sample_points_uniformly(number_of_points=int(FLAGS.num_point))
     point_cloud.paint_uniform_color([0.2, 0.8, 0.2])
     point_cloud = reconstruction_filter(point_cloud)
 
@@ -318,7 +329,7 @@ def welding_paths_detection(mesh_path=FLAGS.mesh_path, vis=True):
     # pcds2 = [mesh] + bboxes
     # o3d.visualization.draw_geometries(pcds2)
 
-    panel_registration(point_cloud, bboxes, int(FLAGS.num_point/30), 0.08)
+    panel_registration(point_cloud, bboxes, int(FLAGS.num_point/30), 0.05)
     # pcds.extend(pointboxes)
     axis = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
     pcds.append(axis)
@@ -337,6 +348,7 @@ def welding_paths_detection(mesh_path=FLAGS.mesh_path, vis=True):
     for indices in intersection_point_indices_list:
         if len(indices) == 0: continue
         trajectories_segments, transformation_matrices = detect_trajectories(predicted_edges_only, indices, colorize=True, vis=vis)
+        if transformation_matrices is None: continue
         pcds.extend(trajectories_segments)
         welding_paths.append(transformation_matrices)
 
@@ -358,4 +370,6 @@ def welding_paths_detection(mesh_path=FLAGS.mesh_path, vis=True):
     return welding_paths, filtered_bboxes, point_cloud
 
 if __name__ == '__main__':
-    welding_paths_detection()
+     welding_paths, filtered_bboxes, point_cloud = welding_paths_detection()
+     np.save(os.path.join(ROOT_DIR, "welding_trajectories.npy"), welding_paths)
+

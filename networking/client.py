@@ -68,7 +68,7 @@ def create_folder(path_to_dir: str):
 def start():
 
     #TODO execute pipeline
-    wpaths = welding_paths_detection("/home/innovation/Projects/meshroom_workspace/reconstruction_2/transformed_mesh/transformed_mesh.obj")
+    wpaths, _ = welding_paths_detection("/home/innovation/Projects/meshroom_workspace/reconstruction_2/transformed_mesh/transformed_mesh.obj")
     np.save(wpaths, OUTPUT_FILE)
 
     is_done = True

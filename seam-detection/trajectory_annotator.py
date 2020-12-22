@@ -106,6 +106,7 @@ if __name__ == '__main__':
     scene_names = sorted(list(os.listdir(data_path)))
 
     for name in scene_names:
+        print("\n", name, " is selected.\n")
         selected_scene_name = name #scene_names[4]
         selected_scene = os.path.join(data_path, selected_scene_name, selected_scene_name)
 
@@ -114,10 +115,6 @@ if __name__ == '__main__':
 
         bboxes, bbox_labels = json2bboxes(jsondata)
         to_display = bboxes
-
-        obj = o3d.io.read_triangle_mesh(selected_scene + ".obj")
-        obj.compute_vertex_normals()
-        to_display.append(obj)
 
         if 'point_lines' in jsondata:
             # print("Trajectories detected. Visualizing...")
@@ -128,12 +125,17 @@ if __name__ == '__main__':
             print("Trajectories detected. Skipping...")
             continue
 
+        if os.path.exists(selected_scene + ".obj"):
+            obj = o3d.io.read_triangle_mesh(selected_scene + ".obj")
+            obj.compute_vertex_normals()
+            to_display.append(obj)
+            pcd = obj.sample_points_uniformly(5000000)
+        else:
+            pcd = o3d.io.read_point_cloud(selected_scene + ".pcd")
 
-        # pcd = o3d.io.read_point_cloud(selected_scene + ".pcd")
-        pcd = obj.sample_points_uniformly(5000000)
         to_display.append(pcd)
 
-        point_lines = choose_trajectories(pcd, 4)
+        point_lines = choose_trajectories(pcd, 2)
 
         mesh_lines = create_mesh_lines(point_lines)
         to_display.extend(mesh_lines)
