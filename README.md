@@ -40,6 +40,9 @@ The pipeline consists of the following submodules:
 
 ### Model Evaluation
 
+- Model evaluation runs inference on all of the test data (`welding_scenes_eval` dir). #TODO: need to think how to include large file storage (Git LFS / OneDrive extension?)
+
+- 
 
 
 ## Data Generation and Training
@@ -58,7 +61,10 @@ The pipeline consists of the following submodules:
     1. Main entry point (pipeline.py).
     2. Evaluation code
     3. Trajectory annotator
+<<<<<<< HEAD
 - Fix `requirements.txt`
+=======
+- Explain modifications made to VoteNet (in separate README.md?)
 
 
         
