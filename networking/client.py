@@ -85,7 +85,7 @@ def stop():
 
 def  on_message(ws, message: str, host: str, port: str):
     d = json.loads(message)
-    if d["message"] == "start":
+    if d["message"] == "init":
         # get the mesh from the server
         print("Downloading mesh from the server ({}) to {}...".format(host, MESH_DIR))
         get_mesh_files(host=host, httpPort=port, path_to_dir=MESH_DIR)
