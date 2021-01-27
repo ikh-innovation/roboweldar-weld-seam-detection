@@ -2,8 +2,6 @@ import os
 import sys
 import numpy as np
 import argparse
-import importlib
-import time
 import open3d as o3d
 import itertools
 
@@ -15,7 +13,7 @@ parser.add_argument('--filter_empty_boxes_num', type=int, default=1000,
 FLAGS = parser.parse_args()
 
 # FLAGS.checkpoint_dir = 'log_panelnet/log_11-27-13:38'
-FLAGS.checkpoint_dir = 'log_panelnet/log_11-25-16:33'
+# FLAGS.checkpoint_dir = 'log_panelnet/log_11-25-16:33'
 # FLAGS.checkpoint_dir = 'log_panelnet/log_11-23-13:01'
 # FLAGS.checkpoint_dir = 'log_panelnet/log_11-30-11:48'
 # FLAGS.checkpoint_dir = 'log_panelnet/log_12-01-17:36'
@@ -47,10 +45,10 @@ FLAGS.mesh_path = "/home/innovation/Downloads/2020.09.29/part_2/transformed_mesh
 
 # ------------Local Imports---------------
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-# sys.path.append(os.path.join(ROOT_DIR, 'utils'))
-VOTENET_DIR = "/home/innovation/Projects/pytorch/votenet/"
-sys.path.append(VOTENET_DIR)
+# VOTENET_DIR = "/home/innovation/Projects/pytorch/votenet/"
+VOTENET_DIR = os.path.join(os.path.dirname(ROOT_DIR), 'votenet')
 sys.path.append(ROOT_DIR)
+sys.path.append(VOTENET_DIR)
 from inference import rbw_inference
 from algorithms import edge_detection, panel_registration
 from lineMesh import LineMesh

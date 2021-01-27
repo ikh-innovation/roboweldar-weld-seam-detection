@@ -24,8 +24,8 @@ OUTPUT_FILE = os.path.join(OUTPUT_DIR, "welding_paths.npy")
 MESH_DIR = os.path.join(BASE_DIR, "reconstructed_mesh")
 
 print(BASE_DIR)
-from pipeline import welding_paths_detection
-from welding_path_generation import *
+# from pipeline import welding_paths_detection
+# from welding_path_generation import *
 
 is_done = False
 
@@ -68,13 +68,17 @@ def create_folder(path_to_dir: str):
 def start():
 
     #TODO execute pipeline
-    wpaths, _ = welding_paths_detection("/home/innovation/Projects/meshroom_workspace/reconstruction_2/transformed_mesh/transformed_mesh.obj")
-    np.save(wpaths, OUTPUT_FILE)
+    # wpaths, _ = welding_paths_detection("/home/innovation/Projects/meshroom_workspace/reconstruction_2/transformed_mesh/transformed_mesh.obj")
+    # np.save(wpaths, OUTPUT_FILE)
 
+    #TODO TEMPORARY RUN WITHOUT PIPELINE
+    load = np.load("/home/innovation/Projects/roboweldar-weld-seam-detection/seam-detection/welding_trajectories.npy")
+    np.save(OUTPUT_FILE, load)
+
+    global is_done
     is_done = True
     message = "Done welding path detection..."
     print(message)
-
 
     return message
 
@@ -85,7 +89,7 @@ def stop():
 
 def  on_message(ws, message: str, host: str, port: str):
     d = json.loads(message)
-    if d["message"] == "init":
+    if d["message"] == "start_weld_seam_detection":
         # get the mesh from the server
         print("Downloading mesh from the server ({}) to {}...".format(host, MESH_DIR))
         get_mesh_files(host=host, httpPort=port, path_to_dir=MESH_DIR)
@@ -97,6 +101,7 @@ def  on_message(ws, message: str, host: str, port: str):
 
 
 def main(host, endpoint):
+    global is_done
     # make sure dirs exist
     create_folder(MESH_DIR)
     create_folder(OUTPUT_DIR)
@@ -110,6 +115,7 @@ def main(host, endpoint):
 
     # init client
     wsClient = ws_client.getClient("ws://" + host + ":3001/" + endpoint)
+    print("ws://" + host + ":3001/" + endpoint)
     wsClient.on_message = partial(on_message, host=host, port=3000)
     wst = threading.Thread(target=wsClient.run_forever)
     wst.daemon = True
@@ -123,7 +129,7 @@ def main(host, endpoint):
         print("Uploading welding paths numpy array to {}...".format(url))
         is_sent_mesh = send_files(url, [OUTPUT_FILE])
         print("Uploaded welding paths numpy array to {}...".format(url))
-
+        is_done = False
 if __name__ == '__main__':
     import argparse
 
