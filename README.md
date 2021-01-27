@@ -26,7 +26,6 @@ The pipeline consists of the following submodules:
         - ...........................................................
         - The function `detect_trajectories()` computes linear segments from the intersecting points between panels, using RANSAC algorithm. It accompanies the results with an optimal pose with which the robot's end-effector should approach each linear segment. This is serialized into numpy (.npy) format for use by the next steps of the RoboWeldAR workflow.
 
-
 ## Trajectory Annotator and Model Evaluation
 
 ### Trajectory Annotation
@@ -72,7 +71,13 @@ The pipeline consists of the following submodules:
 
 
 
+#Installation
+In an environment containing an installation of Python 3.6 and Pip, follow these steps:
+- pip -r install requirements.txt
+- pip -r install votenet/requirements.txt
+- cd votenet/pointnet/ && python setup.py install
 
+#Execution?
 
 
 
