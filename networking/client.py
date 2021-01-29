@@ -22,9 +22,9 @@ sys.path.append(os.path.join(ROOT_DIR, 'seam-detection'))
 OUTPUT_DIR = os.path.join(BASE_DIR, "welding_paths_output")
 OUTPUT_FILE = os.path.join(OUTPUT_DIR, "welding_paths.npy")
 MESH_DIR = os.path.join(BASE_DIR, "reconstructed_mesh")
+MESH_FILE = os.path.join(MESH_DIR, "transformed_mesh.obj")
 
-print(BASE_DIR)
-# from pipeline import welding_paths_detection
+from pipeline import welding_paths_detection
 # from welding_path_generation import *
 
 is_done = False
@@ -66,14 +66,13 @@ def create_folder(path_to_dir: str):
 
 
 def start():
-
     #TODO execute pipeline
-    # wpaths, _ = welding_paths_detection("/home/innovation/Projects/meshroom_workspace/reconstruction_2/transformed_mesh/transformed_mesh.obj")
-    # np.save(wpaths, OUTPUT_FILE)
+    wpaths, _, _ = welding_paths_detection(MESH_FILE)
+    np.save(OUTPUT_FILE, wpaths)
 
     #TODO TEMPORARY RUN WITHOUT PIPELINE
-    load = np.load("/home/innovation/Projects/roboweldar-weld-seam-detection/seam-detection/welding_trajectories.npy")
-    np.save(OUTPUT_FILE, load)
+    # load = np.load("/home/innovation/Projects/roboweldar-weld-seam-detection/seam-detection/welding_trajectories.npy")
+    # np.save(OUTPUT_FILE, load)
 
     global is_done
     is_done = True
@@ -122,7 +121,7 @@ def main(host, endpoint):
     wst.start()
 
     while(True):
-        print(is_done)
+        # print(is_done)
         time.sleep(1)
         if not is_done: continue
         url = "http://" + str(host) + ":3000/cache_welding_trajectory"
@@ -130,12 +129,13 @@ def main(host, endpoint):
         is_sent_mesh = send_files(url, [OUTPUT_FILE])
         print("Uploaded welding paths numpy array to {}...".format(url))
         is_done = False
+
 if __name__ == '__main__':
-    import argparse
+    # import argparse
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('--host', required=True,
+    #                     help="Host on which the server is running")
+    # args = parser.parse_args()
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--host', required=True,
-                        help="Host on which the server is running")
-
-    args = parser.parse_args()
-    main(host=args.host, endpoint="weld_seam_detection")
+    host = "192.168.51.61"
+    main(host=host, endpoint="weld_seam_detection")

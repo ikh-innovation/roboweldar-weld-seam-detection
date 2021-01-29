@@ -12,6 +12,7 @@ parser.add_argument('--filter_empty_boxes_num', type=int, default=1000,
                     help='Do not consider bounding boxes that contain less than this amount of points.')
 FLAGS = parser.parse_args()
 
+# FLAGS = argparse.Namespace()
 # FLAGS.checkpoint_dir = 'log_panelnet/log_11-27-13:38'
 # FLAGS.checkpoint_dir = 'log_panelnet/log_11-25-16:33'
 # FLAGS.checkpoint_dir = 'log_panelnet/log_11-23-13:01'
@@ -52,7 +53,6 @@ sys.path.append(VOTENET_DIR)
 from inference import rbw_inference
 from algorithms import edge_detection, panel_registration
 from lineMesh import LineMesh
-
 
 def reconstruction_filter(point_cloud, filter_radius=0.8, negative_filter=-0.15):
     """apply filters for Roboweldar reconstruction"""
@@ -302,7 +302,7 @@ def detect_trajectories(edges_pointcloud: o3d.geometry.PointCloud, indices:[int]
         return [], np.array(transformation_matrices)
 
 
-def welding_paths_detection(mesh_path=FLAGS.mesh_path, vis=True):
+def welding_paths_detection(mesh_path, vis=True):
 
     if mesh_path.split(".")[1] == "pcd":
         point_cloud = o3d.io.read_point_cloud(mesh_path)
