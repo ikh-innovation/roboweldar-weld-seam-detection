@@ -3,4 +3,4 @@
 	url = git@github.com:ikh-innovation/roboweldar-networking.git
 [submodule "votenet"]
 	path = votenet
-	url = https://github.com/ikh-innovation/roboweldar-votenet.git
+	url = git@github.com:ikh-innovation/roboweldar-votenet.git
