@@ -75,7 +75,7 @@ The pipeline consists of the following submodules:
 In an environment containing an installation of Python 3.6 and Pip, follow these steps:
 - pip -r install requirements.txt
 - pip -r install votenet/requirements.txt
-- cd votenet/pointnet/ && python setup.py install
+- cd votenet/pointnet2/ && python setup.py install
 
 #Execution?
 
