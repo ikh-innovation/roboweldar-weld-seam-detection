@@ -13,6 +13,8 @@ FLAGS = argparse.Namespace()
 # FLAGS.checkpoint_dir = 'log_panelnet/log_12-01-17:36'
 # FLAGS.checkpoint_dir = 'log_panelnet/log_12-08-10:44'
 FLAGS.checkpoint_dir = 'log_panelnet/log_12-15-10:25'
+if os.path.isdir("log_panelnet/selected_checkpoint"):
+    FLAGS.checkpoint_dir = "log_panelnet/selected_checkpoint"
 
 FLAGS.cluster_sampling = 'vote_fps'
 FLAGS.conf_thresh = 0.8
