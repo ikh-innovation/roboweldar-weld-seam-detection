@@ -131,11 +131,9 @@ def main(host, endpoint):
         is_done = False
 
 if __name__ == '__main__':
-    # import argparse
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('--host', required=True,
-    #                     help="Host on which the server is running")
-    # args = parser.parse_args()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--host', default="192.168.51.61", help="Host on which the server is running")
+    args = parser.parse_args()
 
-    host = "192.168.51.61"
-    main(host=host, endpoint="weld_seam_detection")
+    main(host=args.host, endpoint="weld_seam_detection")

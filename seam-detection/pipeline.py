@@ -5,14 +5,7 @@ import argparse
 import open3d as o3d
 import itertools
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--mesh_path',
-                    type=str, help='Mesh absolute path.')
-parser.add_argument('--filter_empty_boxes_num', type=int, default=1000,
-                    help='Do not consider bounding boxes that contain less than this amount of points.')
-FLAGS = parser.parse_args()
-
-# FLAGS = argparse.Namespace()
+FLAGS = argparse.Namespace()
 # FLAGS.checkpoint_dir = 'log_panelnet/log_11-27-13:38'
 # FLAGS.checkpoint_dir = 'log_panelnet/log_11-25-16:33'
 # FLAGS.checkpoint_dir = 'log_panelnet/log_11-23-13:01'
@@ -20,6 +13,7 @@ FLAGS = parser.parse_args()
 # FLAGS.checkpoint_dir = 'log_panelnet/log_12-01-17:36'
 # FLAGS.checkpoint_dir = 'log_panelnet/log_12-08-10:44'
 FLAGS.checkpoint_dir = 'log_panelnet/log_12-15-10:25'
+
 FLAGS.cluster_sampling = 'vote_fps'
 FLAGS.conf_thresh = 0.8
 FLAGS.dataset = 'panelnet'
@@ -37,7 +31,6 @@ FLAGS.use_old_type_nms = False
 FLAGS.vote_factor = 1
 FLAGS.min_points_2b_empty = 700
 
-##TESTING
 FLAGS.mesh_path = "/home/innovation/Downloads/2020.09.29/part_2/transformed_mesh/copy/transformed_mesh.obj"
 # FLAGS.mesh_path = "/home/innovation/Projects/meshroom_workspace/reconstruction_1/transformed_mesh/transformed_mesh.obj" #Π
 # FLAGS.mesh_path = "/home/innovation/Projects/meshroom_workspace/reconstruction_2/transformed_mesh/transformed_mesh.obj" #Τ
@@ -54,7 +47,7 @@ from inference import rbw_inference
 from algorithms import edge_detection, panel_registration
 from lineMesh import LineMesh
 
-def reconstruction_filter(point_cloud, filter_radius=0.8, negative_filter=-0.15):
+def reconstruction_filter(point_cloud, filter_radius=0.5, negative_filter=-0.15):
     """apply filters for Roboweldar reconstruction"""
 
     filter1 = lambda pts: np.linalg.norm(pts,
@@ -368,6 +361,15 @@ def welding_paths_detection(mesh_path, vis=True):
     return welding_paths, filtered_bboxes, point_cloud
 
 if __name__ == '__main__':
-     welding_paths, filtered_bboxes, point_cloud = welding_paths_detection()
-     np.save(os.path.join(ROOT_DIR, "welding_trajectories.npy"), welding_paths)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--mesh_path', type=str, default="", help='Mesh absolute path.')
+    parser.add_argument('--checkpoint_dir', type=str, default="", help='DNN weights checkpoint directory')
+    INPUT = parser.parse_args()
+    if INPUT.mesh_path != "":
+        FLAGS.mesh_path = INPUT.mesh_path
+    if INPUT.checkpoint_dir != "":
+        FLAGS.checkpoint_dir = INPUT.checkpoint_dir
+
+    welding_paths, filtered_bboxes, point_cloud = welding_paths_detection(FLAGS.mesh_path)
+    np.save(os.path.join(ROOT_DIR, "welding_trajectories.npy"), welding_paths)
 
