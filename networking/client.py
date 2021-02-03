@@ -67,7 +67,7 @@ def create_folder(path_to_dir: str):
 
 def start():
     #TODO execute pipeline
-    wpaths, _, _ = welding_paths_detection(MESH_FILE)
+    wpaths, _, _ = welding_paths_detection(MESH_FILE, vis=False)
     np.save(OUTPUT_FILE, wpaths)
 
     #TODO TEMPORARY RUN WITHOUT PIPELINE
