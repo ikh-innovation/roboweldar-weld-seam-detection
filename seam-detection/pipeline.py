@@ -5,6 +5,15 @@ import argparse
 import open3d as o3d
 import itertools
 
+# ------------Local Imports---------------
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+VOTENET_DIR = os.path.join(os.path.dirname(ROOT_DIR), 'votenet')
+sys.path.append(ROOT_DIR)
+sys.path.append(VOTENET_DIR)
+from inference import rbw_inference
+from algorithms import edge_detection, panel_registration
+from lineMesh import LineMesh
+
 FLAGS = argparse.Namespace()
 # FLAGS.checkpoint_dir = 'log_panelnet/log_11-27-13:38'
 # FLAGS.checkpoint_dir = 'log_panelnet/log_11-25-16:33'
@@ -13,7 +22,7 @@ FLAGS = argparse.Namespace()
 # FLAGS.checkpoint_dir = 'log_panelnet/log_12-01-17:36'
 # FLAGS.checkpoint_dir = 'log_panelnet/log_12-08-10:44'
 FLAGS.checkpoint_dir = 'log_panelnet/log_12-15-10:25'
-if os.path.isdir("log_panelnet/selected_checkpoint"):
+if os.path.isdir(os.path.join(VOTENET_DIR, "log_panelnet/selected_checkpoint")):
     FLAGS.checkpoint_dir = "log_panelnet/selected_checkpoint"
 
 FLAGS.cluster_sampling = 'vote_fps'
@@ -39,15 +48,7 @@ FLAGS.mesh_path = "/home/innovation/Downloads/2020.09.29/part_2/transformed_mesh
 # FLAGS.mesh_path = "/home/innovation/Projects/roboweldar-weld-seam-detection/seam-detection/welding_scenes_eval/21/21.obj"
 # FLAGS.mesh_path = "/home/innovation/Projects/pytorch/votenet/panelnet/pc.ply"
 
-# ------------Local Imports---------------
-ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-# VOTENET_DIR = "/home/innovation/Projects/pytorch/votenet/"
-VOTENET_DIR = os.path.join(os.path.dirname(ROOT_DIR), 'votenet')
-sys.path.append(ROOT_DIR)
-sys.path.append(VOTENET_DIR)
-from inference import rbw_inference
-from algorithms import edge_detection, panel_registration
-from lineMesh import LineMesh
+
 
 def reconstruction_filter(point_cloud, filter_radius=0.5, negative_filter=-0.15):
     """apply filters for Roboweldar reconstruction"""
