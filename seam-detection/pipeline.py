@@ -32,6 +32,7 @@ FLAGS.faster_eval = False
 FLAGS.model = 'votenet'
 FLAGS.nms_iou = 0.1
 FLAGS.num_point = 300000
+FLAGS.votenet_sampling = 20000
 FLAGS.num_target = 1024
 FLAGS.per_class_proposal = False
 FLAGS.use_3d_nms = True
