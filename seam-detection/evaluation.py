@@ -127,7 +127,8 @@ if __name__ == '__main__':
 
             # TRAJECTORIES EVAL
             if len(predicted_welding_paths) > 0:
-                predicted_point_lines = predicted_welding_paths[0][:, :, :3, 3]
+                predicted_point_lines = predicted_welding_paths.reshape(-1, *predicted_welding_paths.shape[2:])
+                predicted_point_lines = predicted_point_lines[:, :, :3, 3]
                 predicted_mesh_lines = create_mesh_lines(predicted_point_lines)
                 for i in predicted_mesh_lines:  i.paint_uniform_color([0,1,0])
                 to_display.extend(predicted_mesh_lines)
