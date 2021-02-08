@@ -7,6 +7,7 @@ from functools import partial
 import simplejson as json
 import sys
 import numpy as np
+import open3d as o3d
 
 # TODO: import the following from roboweldar-networking
 from roboweldar_networking.interfaces import ws_client
@@ -20,11 +21,13 @@ ROOT_DIR = os.path.dirname(BASE_DIR)
 sys.path.append(BASE_DIR)
 sys.path.append(os.path.join(ROOT_DIR, 'seam-detection'))
 OUTPUT_DIR = os.path.join(BASE_DIR, "welding_paths_output")
-OUTPUT_FILE = os.path.join(OUTPUT_DIR, "welding_paths.npy")
+OUTPUT_NPY = os.path.join(OUTPUT_DIR, "welding_paths.npy")
+OUTPUT_SIMPLIFIED_MESH = os.path.join(OUTPUT_DIR, "simplified_mesh.obj")
 MESH_DIR = os.path.join(BASE_DIR, "reconstructed_mesh")
 MESH_FILE = os.path.join(MESH_DIR, "transformed_mesh.obj")
 
 from pipeline import welding_paths_detection
+from simplify_mesh import simplify_mesh
 # from welding_path_generation import *
 
 is_done = False
@@ -68,11 +71,13 @@ def create_folder(path_to_dir: str):
 def start():
     #TODO execute pipeline
     wpaths, _, _ = welding_paths_detection(MESH_FILE, vis=False)
-    np.save(OUTPUT_FILE, wpaths)
+    np.save(OUTPUT_NPY, wpaths)
+    simplified_mesh = simplify_mesh(MESH_FILE)
+    o3d.io.write_triangle_mesh(OUTPUT_SIMPLIFIED_MESH, simplified_mesh)
 
     #TODO TEMPORARY RUN WITHOUT PIPELINE
     # load = np.load("/home/innovation/Projects/roboweldar-weld-seam-detection/seam-detection/welding_trajectories.npy")
-    # np.save(OUTPUT_FILE, load)
+    # np.save(OUTPUT_NPY, load)
 
     global is_done
     is_done = True
@@ -126,7 +131,7 @@ def main(host, endpoint):
         if not is_done: continue
         url = "http://" + str(host) + ":3000/cache_welding_trajectory"
         print("Uploading welding paths numpy array to {}...".format(url))
-        is_sent_mesh = send_files(url, [OUTPUT_FILE])
+        is_sent_mesh = send_files(url, [OUTPUT_NPY, OUTPUT_SIMPLIFIED_MESH])
         print("Uploaded welding paths numpy array to {}...".format(url))
         is_done = False
 
