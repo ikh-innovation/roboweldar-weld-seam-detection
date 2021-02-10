@@ -8,11 +8,9 @@ This module is part of the [RoboWeldAR]() project, and can be used to obtain a s
 
 The pipeline consists of the following submodules:
 
-- Computer vision 3-D edge detection algorithm implementation of [[1]](#1). The source code for this is located [here](./seam-detection/algorithms.py).
+- [Facebook's Votenet](https://github.com/facebookresearch/votenet)[[2]](#2) Deep Neural Network for 3-D object detection. A modified implementation of the original is used, that is modified to train on a new dataset containing panels. Details of the modifications, the new dataset, and the source code are included and described [here](https://github.com/ikh-innovation/roboweldar-votenet).
 
-- Facebook's Votenet algorithm for 3-D object detection. A modified implementation of the original, including a panel dataset generator, is located [here](https://github.com/ikh-innovation/roboweldar-votenet).
-
-- A client module that uses websocket and HTTP found [here](./networking/client.py) , which is used to interface with the main [RoboWeldAR coordinator module](https://github.com/ikh-innovation/roboweldar-networking), which coordinates the entire RoboWeldAR workflow.
+- A client module that uses websocket and HTTP found [here](./networking/client.py). It is used to interface with the main [RoboWeldAR coordinator module](https://github.com/ikh-innovation/roboweldar-networking), which coordinates the entire RoboWeldAR workflow. The client module, when executed, expects the ip of the server as an argument (`--host`), which will connect to. Then, it waits for a message from the server to download the mesh files produced by the previous step of RoboWeldAR (3D reconstruction). When the mesh is downloaded, the pipeline proccess is triggered, which produces weld seam trajectory proposals for the referent mesh. These trajectories are stored in a numpy file and consequtively are uploaded to the server. This whole proccess, including the pipeline, can be dockerized. The instructions and further information can be found [here](https://github.com/ikh-innovation/roboweldar-dih-deliverables/tree/main/T2/roboweldar.weld_seam_detection/docker). 
 
 - The main pipeline is located [here](./seam-detection/pipeline.py). The entry point `welding_paths_detection()` runs the following:
     - Loads the input, which is a mesh file (.obj), or a point cloud (.pcd).
@@ -84,3 +82,6 @@ In an environment containing an installation of Python 3.6 and Pip, follow these
 ## References
 <a id="1">[1]</a> 
 Bazazian, Dena, Josep R. Casas, and Javier Ruiz-Hidalgo. "Fast and robust edge extraction in unorganized point clouds." 2015 international conference on digital image computing: techniques and applications (DICTA). IEEE, 2015.
+
+<a id="2">[2]</a>
+Qi, Charles R., et al. "Deep hough voting for 3d object detection in point clouds." Proceedings of the IEEE/CVF International Conference on Computer Vision. 2019.
