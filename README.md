@@ -1,4 +1,7 @@
-# RoboWeldAR Seam Detection
+# RoboWeldAR Weld Seam Trajectory Detection
+
+
+![Alt text](weld_seam_proposal.png?raw=true "Weld seam trajectory proposal")
 
 ## Description
 
@@ -24,6 +27,8 @@ The pipeline consists of the following submodules:
         - The `points_intersection()` function is then applied, to find the intersections of the prementioned edge points between each combination of panels.
         - Finally, the function `detect_trajectories()` computes linear segments from the intersecting points between panels, using RANSAC algorithm. It accompanies the results with an optimal pose with which the robot's end-effector should approach each linear segment. This is serialized into numpy (.npy) format for use by the next steps of the RoboWeldAR workflow. The array is the following format: Nx2x4x4. N is the number of segments, 2 for each pair of start and end point of each segment, and a 4x4 matrix representing the transformation matrix for each point position, including its pose. 
 
+![Alt text](pipeline.png?raw=true "Weld seam detection pipeline")
+
 ## Pipeline Evaluation
 
 ### Evaluation dataset
@@ -40,31 +45,7 @@ To evaluate the performance of object detection and trajectory proposal, a small
 ### Object Detection and Weld Seam Estimation Evaluation
 Apart from the evaluation intergraded in original Votenet's code, a custom [evaluation](./seam-detection/evaluation.py) file was built to run the complete pipeline for each of the scenes in eval dataset and to measure and print out the average Precision and Recall for both panel detection and weld seam estimation. This evaluation is run 10 times to find a consistent average, due to the non-deterministic nature of the algorithms. 
 
-- Model evaluation runs inference on all of the test data (`welding_scenes_eval` dir). #TODO: need to think how to include large file storage (Git LFS / OneDrive extension?)
-
-## Data Generation and Training
-
-
-
-
-
-
-## TODO
-
-- See above TODOs.
-- DONE Move our version of VoteNet into IKH repository on GitHub. 
-- DONE Make the necessary changes to the imports in the code.
-- DONE Make argument parsers for the following:
-    1. Main entry point (pipeline.py).
-    2. Evaluation code
-    3. Trajectory annotator
-
-- Explain modifications made to VoteNet (in separate README.md?)
-
-
-        
-
-
+- Model evaluation runs inference on all of the test data. The evaluation dataset is available in #TODO. 
 
 
 #Installation
@@ -72,10 +53,6 @@ In an environment containing an installation of Python 3.6 and Pip, follow these
 - pip -r install requirements.txt
 - pip -r install votenet/requirements.txt
 - cd votenet/pointnet2/ && python setup.py install
-
-#Execution?
-
-
 
 
 
