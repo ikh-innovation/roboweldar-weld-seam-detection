@@ -45,7 +45,7 @@ To evaluate the performance of object detection and trajectory proposal, a small
 ### Object Detection and Weld Seam Estimation Evaluation
 Apart from the evaluation intergraded in original Votenet's code, a custom [evaluation](./seam-detection/evaluation.py) file was built to run the complete pipeline for each of the scenes in eval dataset and to measure and print out the average Precision and Recall for both panel detection and weld seam estimation. This evaluation is run 10 times to find a consistent average, due to the non-deterministic nature of the algorithms. 
 
-- Model evaluation runs inference on all of the test data. The evaluation dataset is available in #TODO. 
+- Model evaluation runs inference on all of the test data. The evaluation dataset is available in [eval_dataset](https://iknowhow-my.sharepoint.com/:f:/p/tsakelliou/Es_IjUmvbbNNph_jrN1q6wUBjtNd5khSaKC-gwvIPdtl_A?e=ZR5vPY). 
 
 
 #Installation
