@@ -44,6 +44,7 @@ FLAGS.vote_factor = 1
 FLAGS.min_points_2b_empty = 700
 
 FLAGS.mesh_path = "/home/innovation/Downloads/2020.09.29/part_2/transformed_mesh/copy/transformed_mesh.obj"
+# FLAGS.mesh_path = "/home/innovation/Desktop/test3/transformed_mesh.obj"
 # FLAGS.mesh_path = "/home/innovation/Projects/meshroom_workspace/reconstruction_1/transformed_mesh/transformed_mesh.obj" #Π
 # FLAGS.mesh_path = "/home/innovation/Projects/meshroom_workspace/reconstruction_2/transformed_mesh/transformed_mesh.obj" #Τ
 # FLAGS.mesh_path = "/home/innovation/Projects/roboweldar-weld-seam-detection/seam-detection/welding_scenes_eval/21/21.obj"
@@ -96,17 +97,21 @@ def points_intersection(edges: o3d.geometry.PointCloud, box_edge_indices: [[int]
      It returns groups of indices that are common within the 2 aforementioned boxes."""
 
     iter_indices_list = []
+    iter_idx_list = []
     colors = np.asarray(edges.colors)
-    for subset in itertools.combinations(box_edge_indices, 2):
-        intersection_indices = np.intersect1d(subset[0], subset[1])
+    for subset in itertools.combinations(enumerate(box_edge_indices), 2):
+        sub_data = np.asarray(subset)[:,1]
+        sub_idx = np.asarray(subset)[:,0]
+        intersection_indices = np.intersect1d(sub_data[0], sub_data[1])
         iter_indices_list.append(list(intersection_indices))
+        iter_idx_list.append(list(sub_idx))
 
     # iter_indices_list = np.unique(iter_indices_list) #depricated
     # if colorize:
     #     colors[iter_indices_list] = np.array([0., 0., 1.])
     #     edges.colors = o3d.utility.Vector3dVector(colors)
 
-    return iter_indices_list
+    return iter_indices_list, iter_idx_list
 
 
 def edges_within_bboxes(bboxes:[o3d.geometry.OrientedBoundingBox], edges_pt: o3d.geometry.PointCloud) -> ([o3d.geometry.OrientedBoundingBox], [o3d.geometry.PointCloud], [[int]]):
@@ -199,8 +204,66 @@ def make_3d_path(points, path):
     line.paint_uniform_color([0., 1., 0.])
     return line
 
+def is_point_on_line(p0, normal, p):
+    ''' checks if a point p0 with a normal intersects another point.  it works only for the normal's direction'''
 
-def detect_trajectories(edges_pointcloud: o3d.geometry.PointCloud, indices:[int], colorize=True, clusters_num=2, ransac_threshold = 0.004, vis=True) -> ([o3d.geometry.Geometry3D], np.ndarray(shape=(4,4,2))):
+    #a point exsists on a line theorem
+    a = round((p[0] - p0[0])/normal[0], 8)
+    b = round((p[1] - p0[1])/normal[1], 8)
+    c = round((p[2] - p0[2])/normal[2], 8)
+
+    if a == b == c > 0:
+        return True
+    else:
+        return False
+
+def align_normals(surface1_pc, surface2_pc):
+    '''Finds if the normals of a surface(1) (4 points) are looking opposite of a second parallel surface. If not, they are aligned to point away.'''#
+
+    pts2 = np.asarray(surface2_pc.points)
+    nrmls1 = np.asarray(surface1_pc.normals)
+    pts1 = np.asarray(surface1_pc.points)
+    for i in range(4):
+        for pt2 in pts2:
+            if is_point_on_line(pts1[i], nrmls1[i], pt2):
+                nrmls1 = -nrmls1
+                surface1_pc.normals = o3d.utility.Vector3dVector(nrmls1)
+                return surface1_pc
+
+
+def get_bbox_flat_surfaces(bbox: o3d.geometry.OrientedBoundingBox) -> [o3d.geometry.PointCloud]:
+    '''Returns the 2 largest surfaces of a bounding box object. Each is represented by 4 points (poincloud)'''#
+    corners = np.asarray(bbox.get_box_points())
+
+    surface1 = np.array([corners[0], corners[1], corners[2], corners[7]])
+    surface2 = np.array([corners[3], corners[4], corners[5], corners[6]])
+
+    surface1_pc = o3d.geometry.PointCloud()
+    surface1_pc.points = o3d.utility.Vector3dVector(surface1)
+    surface1_pc.estimate_normals()
+
+    surface2_pc = o3d.geometry.PointCloud()
+    surface2_pc.points = o3d.utility.Vector3dVector(surface2)
+    surface2_pc.estimate_normals()
+
+    align_normals(surface1_pc, surface2_pc)
+    align_normals(surface2_pc, surface1_pc)
+
+    return surface1_pc, surface2_pc
+
+
+def surface_dist_to_line_segment(surface_points: np.ndarray, line_segment: np.ndarray):
+    '''finds a distance of a line segment to a surface(4 points)'''
+
+    assert surface_points.shape[0] > 0
+    dist = 0
+    for point in surface_points:
+        dist1 = np.linalg.norm(line_segment[0] - point)
+        dist2 = np.linalg.norm(line_segment[1] - point)
+        dist += dist1 + dist2
+    return dist/len(surface_points)
+
+def detect_trajectories(edges_pointcloud: o3d.geometry.PointCloud, indices:[int], intersected_bboxes:[o3d.geometry.OrientedBoundingBox], colorize=True, clusters_num=2, ransac_threshold = 0.004, vis=True) -> ([o3d.geometry.Geometry3D], np.ndarray(shape=(4,4,2))):
     '''Finds trajectory lines given an edge pointcloud and the indices of the edges that are the union of 2 panels. Returns two mesh lines and a transformation matrix'''
     import itertools
     from sklearn import mixture, cluster
@@ -244,9 +307,30 @@ def detect_trajectories(edges_pointcloud: o3d.geometry.PointCloud, indices:[int]
         # calculate the direction vector of the line
         line_direction = (line_ransac[1] - line_ransac[0])
         line_direction /= np.linalg.norm(line_direction)
+
+        # Find the closest surface to the weld line segment of each of the intersectiong bounding boxes. Calculate the normal out of the 2 surfaces found.
+        surfaces_and_distances = []
+        for bbox in intersected_bboxes:
+            # o3d.visualization.draw_geometries([bbox])
+            point_surfaces = get_bbox_flat_surfaces(bbox)
+            mean_dist = 999
+
+            for surface in point_surfaces:
+                dist = surface_dist_to_line_segment(np.asarray(surface.points), np.array(line_ransac))
+                if dist < mean_dist:
+                    mean_dist = dist
+                    closest_surface = surface
+            surfaces_and_distances.append((closest_surface, mean_dist))
+
+        # new normal - addition of the normals of the surfaces
+        surface1_normal = np.asarray(surfaces_and_distances[0][0].normals)[0]
+        surface2_normal = np.asarray(surfaces_and_distances[1][0].normals)[0]
+        mean_normal = (surface1_normal + surface2_normal) / 2
+
         # calculate the normal of the line based on all the normals of the inlier points
-        mean_normal = np.mean(np.asarray(edges_pointcloud.normals)[indices][cluster_indices][inliers], axis=0, dtype=np.float64)
-        mean_normal /= np.linalg.norm(mean_normal)
+        # mean_normal = np.mean(np.asarray(edges_pointcloud.normals)[indices][cluster_indices][inliers], axis=0, dtype=np.float64)
+        # mean_normal /= np.linalg.norm(mean_normal)
+
         #calculate the 3rd axis
         cross_product = np.cross(line_direction, mean_normal)
 
@@ -334,15 +418,16 @@ def welding_paths_detection(mesh_path, vis=True):
     pcds.extend(filtered_bboxes)
     # o3d.visualization.draw_geometries(pcds)
 
-    intersection_point_indices_list = points_intersection(predicted_edges_only, filtered_bboxes_edges_indices)
+    intersection_point_indices_list, bbox_combinations = points_intersection(predicted_edges_only, filtered_bboxes_edges_indices)
     # TODO detect edges in specific panels
 
     # --------Post-process----------
 
     welding_paths = []
-    for indices in intersection_point_indices_list:
-        if len(indices) == 0: continue
-        trajectories_segments, transformation_matrices = detect_trajectories(predicted_edges_only, indices, colorize=True, vis=vis)
+    for i in range(len(intersection_point_indices_list)):
+        if len(intersection_point_indices_list[i]) == 0: continue
+        intersected_bboxes = [filtered_bboxes[j] for j in bbox_combinations[i]]
+        trajectories_segments, transformation_matrices = detect_trajectories(predicted_edges_only, intersection_point_indices_list[i], intersected_bboxes, colorize=True, vis=vis)
         if transformation_matrices is None: continue
         pcds.extend(trajectories_segments)
         welding_paths.append(transformation_matrices)
