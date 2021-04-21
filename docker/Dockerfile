@@ -24,7 +24,6 @@ RUN yes | pip3 install -r votenet/requirements.txt
 
 RUN cd votenet/pointnet2 && python3 setup.py install
 
-ADD sample_reconstruction sample_reconstruction
 ADD checkpoint votenet/log_panelnet/selected_checkpoint
 
 #PORTS
