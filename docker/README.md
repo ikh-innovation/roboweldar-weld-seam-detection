@@ -1,6 +1,6 @@
 # Docker Image ReadMe
 
-The [Dockerfile](Dockerfile) associated with this image can be used to build an image of the 3D reconstruction module that is waiting to receive images from a server and a message to begin the reconstruction. When it is finished, it returns the 3D reconstructed model back to the server to be displayed.
+The [Dockerfile](Dockerfile) associated with this image can be used to build an image of the weld seam detection module that is waiting to receive a 3D mesh model of a welding scene from a server and a message to begin the the detection. When it is finished, it returns an array of welding paths.
 
 ## Requirements
 
@@ -18,10 +18,11 @@ To deploy the image, apart from Docker, the following are required:
 
 ## How to build an image
 
-The `Dockerfile` retrieves the **latest** version of the codebase direct from RoboWeldAR's GitHub Repository. It uses an [NVIDIA Docker image](https://hub.docker.com/r/nvidia/cuda/) as base, [Alicevision's Merhroom](https://alicevision.org/#meshroom) runtime version 2019.2.0. While inside the docker directory, to build the image run
+The `Dockerfile` uses an [NVIDIA Docker image](https://hub.docker.com/r/nvidia/cuda/) as base, [Alicevision's Merhroom](https://alicevision.org/#meshroom) runtime version 2019.2.0. While inside the root directory of the module, to build the image run
 
 ```console
-docker build -t <component-name> .  
+docker build -f docker/Dockerfile -t <component-name> .
+
 ```
 ## How to run the image
 
