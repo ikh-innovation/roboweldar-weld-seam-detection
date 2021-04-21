@@ -6,19 +6,13 @@ RUN apt-get install -y wget python3-pip python3 libgl1-mesa-glx git
 RUN apt-get install -y gcc-6 g++-6 g++-6-multilib gfortran-6
 RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-6 60 --slave /usr/bin/g++ g++ /usr/bin/g++-6
 RUN pip3 install --upgrade pip
-RUN mkdir -p /opt
 
-#ROBOWELDAR REPO DOWNLOAD
-ADD repo-key /
-RUN \
-  chmod 600 /repo-key && \
-  echo "IdentityFile /repo-key" >> /etc/ssh/ssh_config && \
-  echo "StrictHostKeyChecking no" >> /etc/ssh/ssh_config
+RUN mkdir -p /opt/roboweldar-weld-seam-detection
+WORKDIR /opt/roboweldar-weld-seam-detection
 
-WORKDIR /opt/
-ENV GITHUB_SSH_REPO=git@github.com:ikh-innovation/roboweldar-weld-seam-detection.git
-RUN git clone --recurse-submodules --single-branch ${GITHUB_SSH_REPO}
-#--single-branch --branch docker_branch
+COPY seam-detection ./
+COPY votenet ./
+COPY networking ./
 
 #CUDA
 RUN export LD_LIBRARY_PATH=/usr/local/cuda/lib64
@@ -26,8 +20,6 @@ RUN export LD_LIBRARY_PATH=/usr/local/cuda/lib64
 #SETUP
 RUN yes | pip3 install -r roboweldar-weld-seam-detection/requirements.txt
 RUN yes | pip3 install -r roboweldar-weld-seam-detection/votenet/requirements.txt
-
-WORKDIR /opt/roboweldar-weld-seam-detection
 
 RUN cd votenet/pointnet2 && python3 setup.py install
 
