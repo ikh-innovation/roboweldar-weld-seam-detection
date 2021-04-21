@@ -10,9 +10,9 @@ RUN pip3 install --upgrade pip
 #RUN mkdir -p /opt/roboweldar-weld-seam-detection
 WORKDIR /opt/roboweldar-weld-seam-detection
 
-COPY seam-detection .
-COPY votenet .
-COPY networking .
+COPY seam-detection seam-detection/
+COPY votenet votenet/
+COPY networking networking/
 COPY requirements.txt .
 
 #CUDA
