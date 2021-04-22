@@ -24,8 +24,6 @@ RUN yes | pip3 install -r votenet/requirements.txt
 
 RUN cd votenet/pointnet2 && python3 setup.py install
 
-ADD checkpoint votenet/log_panelnet/selected_checkpoint
-
 #PORTS
 EXPOSE 3000
 EXPOSE 3001
