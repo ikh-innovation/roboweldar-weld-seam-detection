@@ -1,7 +1,0 @@
-# Created by Open3D 
-# object name: transformed_mesh
-newmtl transformed_mesh_0
-Ka 1.000 1.000 1.000
-Kd 1.000 1.000 1.000
-Ks 0.000 0.000 0.000
-map_Kd transformed_mesh_0.png
