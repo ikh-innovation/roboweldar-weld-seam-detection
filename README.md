@@ -15,7 +15,6 @@ There are three possible ways to use this module:
 
 Docker images are made such as to communicate with the [coordinator module](https://github.com/ikh-innovation/roboweldar-networking). If the source code is used locally, the same behavior can be achieved by running [client](networking/client.py). If the purpose is to read and export from a local file or to change the parameters and tweak the algorithms, start by running the [pipeline](seam-detection/pipeline.py).
 
-
 ## Installation
 for building and running the module manually, a setup with a CUDA GPU available is required, with installed CUDNN developers kit, and the relevant drivers. In an environment containing an installation of Python 3.6, pip and git, follow these steps:
 - git clone --recurse-submodules https://github.com/ikh-innovation/roboweldar-weld-seam-detection.git
@@ -24,4 +23,5 @@ for building and running the module manually, a setup with a CUDA GPU available 
 - cd votenet/pointnet2/ && python setup.py install
 
 
-
+## Licence
+[Apache License 2.0](LICENCE)
