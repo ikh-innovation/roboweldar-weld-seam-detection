@@ -13,7 +13,7 @@ There are three possible ways to use this module:
 - Building the docker image. Follow the instructions at [docker](docker/README.md).
 - Building and running the application locally. PLease read the [architecture description](docs/architecture.md), follow the the installation instructions below.
 
-Docker images are made such as to communicate with the [coordinator module](https://github.com/ikh-innovation/roboweldar-networking) via an API, which is described [here](docs/api.md). If the source code is used locally, the same behavior can be achieved by running [client](networking/client.py). If the purpose is to read and export from a local file or to change the parameters and tweak the algorithms, start by running the [pipeline](seam-detection/pipeline.py) file, and refer to [api](docks/api.md).
+Docker images are made such as to communicate with the [coordinator module](https://github.com/ikh-innovation/roboweldar-networking) via an API, which is described [here](docs/api.md). If the source code is used locally, the same behavior can be achieved by running [client](networking/client.py). If the purpose is to read and export from a local file or to change the parameters and tweak the algorithms, start by running the [pipeline](seam-detection/pipeline.py) file, and refer to [api](docs/api.md).
 
 
 ## Installation
