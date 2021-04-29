@@ -23,6 +23,7 @@ sys.path.append(os.path.join(ROOT_DIR, 'seam-detection'))
 OUTPUT_DIR = os.path.join(BASE_DIR, "welding_paths_output")
 OUTPUT_NPY = os.path.join(OUTPUT_DIR, "welding_paths.npy")
 OUTPUT_SIMPLIFIED_MESH = os.path.join(OUTPUT_DIR, "simplified_mesh.obj")
+OUTPUT_RAJECTORY_MESH = os.path.join(OUTPUT_DIR, "trajectories_mesh.obj")
 MESH_DIR = os.path.join(BASE_DIR, "reconstructed_mesh")
 MESH_FILE = os.path.join(MESH_DIR, "transformed_mesh.obj")
 
@@ -67,13 +68,42 @@ def create_folder(path_to_dir: str):
     else:
         os.mkdir(path_to_dir)
 
+def unify_meshes(mesh_list):
+    ''' unifies a list of meshes together, into one mesh. Texture is not implemented'''
+
+    unified_mesh = o3d.geometry.TriangleMesh()
+    triangles =[]
+    normals = []
+    vertices = []
+    vertex_normals = []
+    vertex_colors = []
+    for mesh in mesh_list:
+        triangles.extend(np.asarray(mesh.triangles) + len(vertices))
+        normals.extend(np.asarray(mesh.triangle_normals))
+        vertices.extend(np.asarray(mesh.vertices))
+        vertex_normals.extend(np.asarray(mesh.vertex_normals))
+        vertex_colors.extend(np.asarray(mesh.vertex_colors))
+
+    unified_mesh.triangles = o3d.utility.Vector3iVector(triangles)
+    unified_mesh.triangle_normals = o3d.utility.Vector3dVector(normals)
+    unified_mesh.vertices = o3d.utility.Vector3dVector(vertices)
+    unified_mesh.vertex_normals = o3d.utility.Vector3dVector(vertex_normals)
+    unified_mesh.vertex_colors = o3d.utility.Vector3dVector(vertex_colors)
+
+    return unified_mesh
+
 
 def start():
     #TODO execute pipeline
-    wpaths, _, _ = welding_paths_detection(MESH_FILE, vis=False)
+    wpaths, trajectories = welding_paths_detection(MESH_FILE, vis=False, vis_out=True)
     np.save(OUTPUT_NPY, wpaths)
-    simplified_mesh = simplify_mesh(MESH_FILE)
+    mesh = o3d.io.read_triangle_mesh(MESH_FILE)
+    simplified_mesh = simplify_mesh(mesh)
     o3d.io.write_triangle_mesh(OUTPUT_SIMPLIFIED_MESH, simplified_mesh)
+
+    # trajectories.append(mesh)
+    one_mesh_trajectories = unify_meshes(trajectories)
+    o3d.io.write_triangle_mesh(OUTPUT_RAJECTORY_MESH, one_mesh_trajectories)
 
     #TODO TEMPORARY RUN WITHOUT PIPELINE
     # load = np.load("/home/innovation/Projects/roboweldar-weld-seam-detection/seam-detection/welding_trajectories.npy")
@@ -131,7 +161,7 @@ def main(host, endpoint):
         if not is_done: continue
         url = "http://" + str(host) + ":3000/cache_welding_trajectory"
         print("Uploading welding paths numpy array to {}...".format(url))
-        is_sent_mesh = send_files(url, [OUTPUT_NPY, OUTPUT_SIMPLIFIED_MESH])
+        is_sent_mesh = send_files(url, [OUTPUT_NPY, OUTPUT_SIMPLIFIED_MESH, OUTPUT_RAJECTORY_MESH])
         print("Uploaded welding paths numpy array to {}...".format(url))
         is_done = False
 

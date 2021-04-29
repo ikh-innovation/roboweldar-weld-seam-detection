@@ -383,7 +383,7 @@ def detect_trajectories(edges_pointcloud: o3d.geometry.PointCloud, indices:[int]
         return [], np.array(transformation_matrices)
 
 
-def welding_paths_detection(mesh_path, vis=True):
+def welding_paths_detection(mesh_path, vis=True, vis_out=False):
 
     if mesh_path.split(".")[1] == "pcd":
         point_cloud = o3d.io.read_point_cloud(mesh_path)
@@ -424,14 +424,16 @@ def welding_paths_detection(mesh_path, vis=True):
     # --------Post-process----------
 
     welding_paths = []
+    all_trajectories = []
     for i in range(len(intersection_point_indices_list)):
         if len(intersection_point_indices_list[i]) == 0: continue
         intersected_bboxes = [filtered_bboxes[j] for j in bbox_combinations[i]]
-        trajectories_segments, transformation_matrices = detect_trajectories(predicted_edges_only, intersection_point_indices_list[i], intersected_bboxes, colorize=True, vis=vis)
+        trajectories_segments, transformation_matrices = detect_trajectories(predicted_edges_only, intersection_point_indices_list[i], intersected_bboxes, colorize=True, vis=(vis or vis_out))
         if transformation_matrices is None: continue
-        pcds.extend(trajectories_segments)
+        all_trajectories.extend(trajectories_segments)
         welding_paths.append(transformation_matrices)
 
+    pcds.extend(all_trajectories)
     welding_paths = np.array(welding_paths)
 
     # path = path_finder(intersection_points)
@@ -447,7 +449,10 @@ def welding_paths_detection(mesh_path, vis=True):
     starting/ending points x2
     transformation matrix 4x4
     """
-    return welding_paths, filtered_bboxes, point_cloud
+    if vis_out:
+        return welding_paths, all_trajectories
+    else:
+        return welding_paths, filtered_bboxes, point_cloud
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
